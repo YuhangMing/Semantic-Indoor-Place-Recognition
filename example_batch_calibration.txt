@@ -1,0 +1,55 @@
+Get convolution neighbors
+batch.neighbors:
+    [21604, 63], [5473, 61], [1392, 397], [335, 277], [86, 86]
+# row is the number of points, column is the number of neighbors.
+# values in each row is in range of [0, number_of_points], 
+# while number_of_points is actually an invalid index
+    array([[    0,   155,     1, ..., 21604, 21604, 21604],
+           [    1,     0,     2, ..., 21604, 21604, 21604],
+           [    2,     1,     4, ..., 21604, 21604, 21604],
+           ...,
+           [21601, 21599, 21603, ..., 21604, 21604, 21604],
+           [21602, 21568, 21504, ..., 21604, 21604, 21604],
+           [21603, 21504, 21568, ..., 21604, 21604, 21604]]), 
+    array([[   0,   21,  508, ..., 5473, 5473, 5473],
+           [   1,  250, 2718, ..., 5473, 5473, 5473],
+           [   2,    3, 5145, ..., 5473, 5473, 5473],
+           ...,
+           [5470, 4449,  303, ..., 5473, 5473, 5473],
+           [5471, 2840, 2910, ..., 5473, 5473, 5473],
+           [5472, 2909, 5465, ..., 5473, 5473, 5473]]), 
+    array([[   0,  662,  479, ..., 1392, 1392, 1392],
+           [   1,   73,   51, ..., 1392, 1392, 1392],
+           [   2,  521,    3, ..., 1392, 1392, 1392],
+           ...,
+           [1389,  272, 1105, ..., 1392, 1392, 1392],
+           [1390, 1281, 1326, ..., 1392, 1392, 1392],
+           [1391,  631, 1280, ..., 1392, 1392, 1392]]), 
+    array([[  0,  81, 303, ..., 335, 335, 335],
+           [  1, 254, 151, ..., 335, 335, 335],
+           [  2,  87, 240, ..., 335, 335, 335],
+           ...,
+           [332, 178,  93, ..., 335, 335, 335],
+           [333, 204,  70, ..., 335, 335, 335],
+           [334, 256,  22, ..., 335, 335, 335]]), 
+    array([[ 0, 56, 52, ..., 86, 86, 86],
+           [ 1, 71, 12, ..., 86, 86, 86],
+           [ 2, 31, 34, ..., 86, 86, 86],
+           ...,
+           [83, 76, 25, ..., 31,  1,  5],
+           [84, 81, 21, ..., 27, 65, 62],
+           [85, 52, 20, ..., 86, 86, 86]]), 
+
+Count the number of valid neighbors:
+counts = [np.sum(neighb_mat.numpy() < neighb_mat.shape[0], axis=1) for neighb_mat in batch.neighbors]
+
+    neighb_mat.numpy() < neighb_mat.shape[0]: a boolean array with True/False
+    np.sum(neighb_mat.numpy() < neighb_mat.shape[0], axis=1): sum over the row direction, result in an (num_points, ) array
+    counts is a list of np arrays with shape: [(21604, ), (5473, ), (1392, ), (335, ), (86, )
+
+Update the histogram over the number of neighbors for each point:
+hists = [np.bincount(c, minlength=hist_n)[:hist_n] for c in counts]
+    x-axis be the number of neighbors, y-axis be the count, x-axis minimum is set to hist_n (1734)
+neighb_hists += np.vstack(hists)    
+    sum over all the batches in all epoches
+

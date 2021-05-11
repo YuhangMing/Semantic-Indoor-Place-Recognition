@@ -1,0 +1,36 @@
+Train Scannet:
+
+Error when debug_timing:
+
+Step 00000400 -> (ms/batch)   947.60    50.37 / batch = 10.09 - 101228
+Step 00000401 -> (ms/batch)   852.92    50.35 / batch = 10.08 - 100843
+ERROR: Unexpected floating-point exception encountered in worker.
+Step 00000402 -> (ms/batch)   767.79    50.33 / batch = 10.09 - 100988
+Traceback (most recent call last):
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 986, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/queue.py", line 179, in get
+    self.not_empty.wait(remaining)
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/threading.py", line 306, in wait
+    gotit = waiter.acquire(True, timeout)
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/_utils/signal_handling.py", line 66, in handler
+    _error_if_any_worker_fails()
+RuntimeError: DataLoader worker (pid 58568) is killed by signal: Floating point exception. 
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "train_Scannet.py", line 276, in <module>
+    debug_timing(training_dataset, training_loader)
+  File "/home/yohann/NNs/KPConv-PyTorch/datasets/Scannet.py", line 1732, in debug_timing
+    for batch_i, batch in enumerate(loader):
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 517, in __next__
+    data = self._next_data()
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 1182, in _next_data
+    idx, data = self._get_data()
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 1138, in _get_data
+    success, data = self._try_get_data()
+  File "/home/yohann/anaconda3/envs/graph/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 999, in _try_get_data
+    raise RuntimeError('DataLoader worker (pid(s) {}) exited unexpectedly'.format(pids_str)) from e
+RuntimeError: DataLoader worker (pid(s) 58568) exited unexpectedly
+
