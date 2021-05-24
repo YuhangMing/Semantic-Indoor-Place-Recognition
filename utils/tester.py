@@ -23,6 +23,7 @@
 
 
 # Basic libs
+import enum
 import torch
 import torch.nn as nn
 import numpy as np
@@ -472,315 +473,6 @@ class ModelTester:
 
         return
 
-    def slam_segmentation_test(self, net, test_loader, config, num_votes=100, debug=True):
-        """
-        Test method for slam segmentation models
-        """
-
-        ############
-        # Initialize
-        ############
-
-        # Choose validation smoothing parameter (0 for no smothing, 0.99 for big smoothing)
-        test_smooth = 0.5
-        last_min = -0.5
-        softmax = torch.nn.Softmax(1)
-
-        # Number of classes including ignored labels
-        nc_tot = test_loader.dataset.num_classes
-        nc_model = net.C
-
-        # Test saving path
-        test_path = None
-        report_path = None
-        if config.saving:
-            test_path = join('test', config.saving_path.split('/')[-1])
-            if not exists(test_path):
-                makedirs(test_path)
-            report_path = join(test_path, 'reports')
-            if not exists(report_path):
-                makedirs(report_path)
-
-        if test_loader.dataset.set == 'validation':
-            for folder in ['val_predictions', 'val_probs']:
-                if not exists(join(test_path, folder)):
-                    makedirs(join(test_path, folder))
-        else:
-            for folder in ['predictions', 'probs']:
-                if not exists(join(test_path, folder)):
-                    makedirs(join(test_path, folder))
-
-        # Init validation container
-        all_f_preds = []
-        all_f_labels = []
-        if test_loader.dataset.set == 'validation':
-            for i, seq_frames in enumerate(test_loader.dataset.frames):
-                all_f_preds.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
-                all_f_labels.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
-
-        #####################
-        # Network predictions
-        #####################
-
-        predictions = []
-        targets = []
-        test_epoch = 0
-
-        t = [time.time()]
-        last_display = time.time()
-        mean_dt = np.zeros(1)
-
-        # Start test loop
-        while True:
-            print('Initialize workers')
-            for i, batch in enumerate(test_loader):
-
-                # New time
-                t = t[-1:]
-                t += [time.time()]
-
-                if i == 0:
-                    print('Done in {:.1f}s'.format(t[1] - t[0]))
-
-                if 'cuda' in self.device.type:
-                    batch.to(self.device)
-
-                # Forward pass
-                outputs = net(batch, config)
-
-                # Get probs and labels
-                stk_probs = softmax(outputs).cpu().detach().numpy()
-                lengths = batch.lengths[0].cpu().numpy()
-                f_inds = batch.frame_inds.cpu().numpy()
-                r_inds_list = batch.reproj_inds
-                r_mask_list = batch.reproj_masks
-                labels_list = batch.val_labels
-                torch.cuda.synchronize(self.device)
-
-                t += [time.time()]
-
-                # Get predictions and labels per instance
-                # ***************************************
-
-                i0 = 0
-                for b_i, length in enumerate(lengths):
-
-                    # Get prediction
-                    probs = stk_probs[i0:i0 + length]
-                    proj_inds = r_inds_list[b_i]
-                    proj_mask = r_mask_list[b_i]
-                    frame_labels = labels_list[b_i]
-                    s_ind = f_inds[b_i, 0]
-                    f_ind = f_inds[b_i, 1]
-
-                    # Project predictions on the frame points
-                    proj_probs = probs[proj_inds]
-
-                    # Safe check if only one point:
-                    if proj_probs.ndim < 2:
-                        proj_probs = np.expand_dims(proj_probs, 0)
-
-                    # Save probs in a binary file (uint8 format for lighter weight)
-                    seq_name = test_loader.dataset.sequences[s_ind]
-                    if test_loader.dataset.set == 'validation':
-                        folder = 'val_probs'
-                        pred_folder = 'val_predictions'
-                    else:
-                        folder = 'probs'
-                        pred_folder = 'predictions'
-                    filename = '{:s}_{:07d}.npy'.format(seq_name, f_ind)
-                    filepath = join(test_path, folder, filename)
-                    if exists(filepath):
-                        frame_probs_uint8 = np.load(filepath)
-                    else:
-                        frame_probs_uint8 = np.zeros((proj_mask.shape[0], nc_model), dtype=np.uint8)
-                    frame_probs = frame_probs_uint8[proj_mask, :].astype(np.float32) / 255
-                    frame_probs = test_smooth * frame_probs + (1 - test_smooth) * proj_probs
-                    frame_probs_uint8[proj_mask, :] = (frame_probs * 255).astype(np.uint8)
-                    np.save(filepath, frame_probs_uint8)
-
-                    # Save some prediction in ply format for visual
-                    if test_loader.dataset.set == 'validation':
-
-                        # Insert false columns for ignored labels
-                        frame_probs_uint8_bis = frame_probs_uint8.copy()
-                        for l_ind, label_value in enumerate(test_loader.dataset.label_values):
-                            if label_value in test_loader.dataset.ignored_labels:
-                                frame_probs_uint8_bis = np.insert(frame_probs_uint8_bis, l_ind, 0, axis=1)
-
-                        # Predicted labels
-                        frame_preds = test_loader.dataset.label_values[np.argmax(frame_probs_uint8_bis,
-                                                                                 axis=1)].astype(np.int32)
-
-                        # Save some of the frame pots
-                        if f_ind % 20 == 0:
-                            seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            frame_points = np.fromfile(velo_file, dtype=np.float32)
-                            frame_points = frame_points.reshape((-1, 4))
-                            predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
-                            #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
-                            pots = np.zeros((0,))
-                            if pots.shape[0] > 0:
-                                write_ply(predpath,
-                                          [frame_points[:, :3], frame_labels, frame_preds, pots],
-                                          ['x', 'y', 'z', 'gt', 'pre', 'pots'])
-                            else:
-                                write_ply(predpath,
-                                          [frame_points[:, :3], frame_labels, frame_preds],
-                                          ['x', 'y', 'z', 'gt', 'pre'])
-
-                            # Also Save lbl probabilities
-                            probpath = join(test_path, folder, filename[:-4] + '_probs.ply')
-                            lbl_names = [test_loader.dataset.label_to_names[l]
-                                         for l in test_loader.dataset.label_values
-                                         if l not in test_loader.dataset.ignored_labels]
-                            write_ply(probpath,
-                                      [frame_points[:, :3], frame_probs_uint8],
-                                      ['x', 'y', 'z'] + lbl_names)
-
-                        # keep frame preds in memory
-                        all_f_preds[s_ind][f_ind] = frame_preds
-                        all_f_labels[s_ind][f_ind] = frame_labels
-
-                    else:
-
-                        # Save some of the frame preds
-                        if f_inds[b_i, 1] % 100 == 0:
-
-                            # Insert false columns for ignored labels
-                            for l_ind, label_value in enumerate(test_loader.dataset.label_values):
-                                if label_value in test_loader.dataset.ignored_labels:
-                                    frame_probs_uint8 = np.insert(frame_probs_uint8, l_ind, 0, axis=1)
-
-                            # Predicted labels
-                            frame_preds = test_loader.dataset.label_values[np.argmax(frame_probs_uint8,
-                                                                                     axis=1)].astype(np.int32)
-
-                            # Load points
-                            seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            frame_points = np.fromfile(velo_file, dtype=np.float32)
-                            frame_points = frame_points.reshape((-1, 4))
-                            predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
-                            #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
-                            pots = np.zeros((0,))
-                            if pots.shape[0] > 0:
-                                write_ply(predpath,
-                                          [frame_points[:, :3], frame_preds, pots],
-                                          ['x', 'y', 'z', 'pre', 'pots'])
-                            else:
-                                write_ply(predpath,
-                                          [frame_points[:, :3], frame_preds],
-                                          ['x', 'y', 'z', 'pre'])
-
-                    # Stack all prediction for this epoch
-                    i0 += length
-
-                # Average timing
-                t += [time.time()]
-                mean_dt = 0.95 * mean_dt + 0.05 * (np.array(t[1:]) - np.array(t[:-1]))
-
-                # Display
-                if (t[-1] - last_display) > 1.0:
-                    last_display = t[-1]
-                    message = 'e{:03d}-i{:04d} => {:.1f}% (timings : {:4.2f} {:4.2f} {:4.2f}) / pots {:d} => {:.1f}%'
-                    min_pot = int(torch.floor(torch.min(test_loader.dataset.potentials)))
-                    pot_num = torch.sum(test_loader.dataset.potentials > min_pot + 0.5).type(torch.int32).item()
-                    current_num = pot_num + (i + 1 - config.validation_size) * config.val_batch_num
-                    print(message.format(test_epoch, i,
-                                         100 * i / config.validation_size,
-                                         1000 * (mean_dt[0]),
-                                         1000 * (mean_dt[1]),
-                                         1000 * (mean_dt[2]),
-                                         min_pot,
-                                         100.0 * current_num / len(test_loader.dataset.potentials)))
-
-
-            # Update minimum od potentials
-            new_min = torch.min(test_loader.dataset.potentials)
-            print('Test epoch {:d}, end. Min potential = {:.1f}'.format(test_epoch, new_min))
-
-            if last_min + 1 < new_min:
-
-                # Update last_min
-                last_min += 1
-
-                if test_loader.dataset.set == 'validation' and last_min % 1 == 0:
-
-                    #####################################
-                    # Results on the whole validation set
-                    #####################################
-
-                    # Confusions for our subparts of validation set
-                    Confs = np.zeros((len(predictions), nc_tot, nc_tot), dtype=np.int32)
-                    for i, (preds, truth) in enumerate(zip(predictions, targets)):
-
-                        # Confusions
-                        Confs[i, :, :] = fast_confusion(truth, preds, test_loader.dataset.label_values).astype(np.int32)
-
-
-                    # Show vote results
-                    print('\nCompute confusion')
-
-                    val_preds = []
-                    val_labels = []
-                    t1 = time.time()
-                    for i, seq_frames in enumerate(test_loader.dataset.frames):
-                        val_preds += [np.hstack(all_f_preds[i])]
-                        val_labels += [np.hstack(all_f_labels[i])]
-                    val_preds = np.hstack(val_preds)
-                    val_labels = np.hstack(val_labels)
-                    t2 = time.time()
-                    C_tot = fast_confusion(val_labels, val_preds, test_loader.dataset.label_values)
-                    t3 = time.time()
-                    print(' Stacking time : {:.1f}s'.format(t2 - t1))
-                    print('Confusion time : {:.1f}s'.format(t3 - t2))
-
-                    s1 = '\n'
-                    for cc in C_tot:
-                        for c in cc:
-                            s1 += '{:7.0f} '.format(c)
-                        s1 += '\n'
-                    if debug:
-                        print(s1)
-
-                    # Remove ignored labels from confusions
-                    for l_ind, label_value in reversed(list(enumerate(test_loader.dataset.label_values))):
-                        if label_value in test_loader.dataset.ignored_labels:
-                            C_tot = np.delete(C_tot, l_ind, axis=0)
-                            C_tot = np.delete(C_tot, l_ind, axis=1)
-
-                    # Objects IoU
-                    val_IoUs = IoU_from_confusions(C_tot)
-
-                    # Compute IoUs
-                    mIoU = np.mean(val_IoUs)
-                    s2 = '{:5.2f} | '.format(100 * mIoU)
-                    for IoU in val_IoUs:
-                        s2 += '{:5.2f} '.format(100 * IoU)
-                    print(s2 + '\n')
-
-                    # Save a report
-                    report_file = join(report_path, 'report_{:04d}.txt'.format(int(np.floor(last_min))))
-                    str = 'Report of the confusion and metrics\n'
-                    str += '***********************************\n\n\n'
-                    str += 'Confusion matrix:\n\n'
-                    str += s1
-                    str += '\nIoU values:\n\n'
-                    str += s2
-                    str += '\n\n'
-                    with open(report_file, 'w') as f:
-                        f.write(str)
-
-            test_epoch += 1
-
-            # Break when reaching number of desired votes
-            if last_min > num_votes:
-                break
-
-        return
-
     def segmentation_with_return(self, net, test_loader, config, num_votes=100, debug=False):
         """
         Test method for cloud segmentation models with 
@@ -1096,7 +788,7 @@ class ModelTester:
                 test_name3 = join(test_path, 'predictions', cloud_name[:-4]+'_pred')
                 # colour = np.array([np.array(object_label[i]).astype(np.uint8) for i in preds])
                 colour = np.array(
-                    [np.array(test_loader.dataset.colour_to_label[i]).astype(np.uint8) 
+                    [np.array(test_loader.dataset.label_to_colour[i]).astype(np.uint8) 
                     for i in preds])
                 write_ply(test_name3,
                             [points, colour, preds],
@@ -1130,25 +822,448 @@ class ModelTester:
 
         return
 
+    def slam_segmentation_test(self, net, test_loader, config, num_votes=100, debug=True):
+        """
+        Test method for slam segmentation models
+        """
+
+        ############
+        # Initialize
+        ############
+
+        # Choose validation smoothing parameter (0 for no smothing, 0.99 for big smoothing)
+        test_smooth = 0.5
+        last_min = -0.5
+        softmax = torch.nn.Softmax(1)
+
+        # Number of classes including ignored labels
+        nc_tot = test_loader.dataset.num_classes
+        nc_model = net.C
+
+        # Test saving path
+        test_path = None
+        report_path = None
+        if config.saving:
+            test_path = join('test', config.saving_path.split('/')[-1])
+
+            # print("\n\ntest_path:", test_path)
+            
+            if not exists(test_path):
+                makedirs(test_path)
+            report_path = join(test_path, 'reports')
+            if not exists(report_path):
+                makedirs(report_path)
+
+        if test_loader.dataset.set == 'validation':
+            for folder in ['val_predictions', 'val_probs']:
+                if not exists(join(test_path, folder)):
+                    makedirs(join(test_path, folder))
+        else:
+            for folder in ['predictions', 'probs']:
+                if not exists(join(test_path, folder)):
+                    makedirs(join(test_path, folder))
+
+        # Init validation container
+        all_f_preds = []
+        all_f_labels = []
+        if test_loader.dataset.set == 'validation':
+            for i, seq_frames in enumerate(test_loader.dataset.frames):
+                all_f_preds.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
+                all_f_labels.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
+
+        #####################
+        # Network predictions
+        #####################
+
+        predictions = []
+        targets = []
+        test_epoch = 0
+
+        t = [time.time()]
+        last_display = time.time()
+        mean_dt = np.zeros(1)
+
+        # Start test loop
+        while True:
+            print('Initialize workers')
+            for i, batch in enumerate(test_loader):
+
+                # stop fetch new batch if no more points left
+                if len(batch.points) == 0:
+                    break
+
+                # New time
+                t = t[-1:]
+                t += [time.time()]
+
+                if i == 0:
+                    print('Done in {:.1f}s'.format(t[1] - t[0]))
+
+                if 'cuda' in self.device.type:
+                    batch.to(self.device)
+
+                # Forward pass
+                outputs = net(batch, config)
+
+                # # Get intermediate features
+                # # with dims [a, 64] [b, 128] [c, 256] [d, 512] [e, 1024]
+                # inter_en_feat = net.inter_encoder_features(batch, config)
+                # print('    ', len(inter_en_feat), 'intermediate features stored', end=': ')
+                # for feat in inter_en_feat:
+                #     # print(feat)
+                #     print('[{:d}, {:d}]'.format(feat.size(0), feat.size(1)), end=' ')
+                # print('')
+
+                # Get probs and labels
+                stk_probs = softmax(outputs).cpu().detach().numpy()
+                lengths = batch.lengths[0].cpu().numpy()
+                f_inds = batch.frame_inds.cpu().numpy()
+                r_inds_list = batch.reproj_inds
+                r_mask_list = batch.reproj_masks
+                labels_list = batch.val_labels
+                torch.cuda.synchronize(self.device)
+
+                t += [time.time()]
+
+                # Get predictions and labels per instance
+                # ***************************************
+
+                i0 = 0
+                for b_i, length in enumerate(lengths):
+
+                    # Get prediction
+                    probs = stk_probs[i0:i0 + length]
+                    proj_inds = r_inds_list[b_i]
+                    proj_mask = r_mask_list[b_i]
+                    frame_labels = labels_list[b_i]
+                    s_ind = f_inds[b_i, 0]
+                    f_ind = f_inds[b_i, 1]
+
+                    # Project predictions on the frame points
+                    proj_probs = probs[proj_inds]
+
+                    # Safe check if only one point:
+                    if proj_probs.ndim < 2:
+                        proj_probs = np.expand_dims(proj_probs, 0)
+
+                    # Save probs in a binary file (uint8 format for lighter weight)
+                    seq_name = test_loader.dataset.scenes[s_ind]
+                    if test_loader.dataset.set == 'validation':
+                        folder = 'val_probs'
+                        pred_folder = 'val_predictions'
+                    else:
+                        folder = 'probs'
+                        pred_folder = 'predictions'
+                    ori_file = test_loader.dataset.files[s_ind][f_ind].split('/')[-1]
+                    # filename = '{:s}_{:07d}.npy'.format(seq_name, f_ind)
+                    filename = ori_file[:-4]+'.npy'
+                    filepath = join(test_path, folder, filename)
+                    # print('filename', filename)
+                    # print('filepath', filepath)
+                    if exists(filepath):
+                        frame_probs_uint8 = np.load(filepath)
+                    else:
+                        frame_probs_uint8 = np.zeros((proj_mask.shape[0], nc_model), dtype=np.uint8)
+                    frame_probs = frame_probs_uint8[proj_mask, :].astype(np.float32) / 255
+                    frame_probs = test_smooth * frame_probs + (1 - test_smooth) * proj_probs
+                    frame_probs_uint8[proj_mask, :] = (frame_probs * 255).astype(np.uint8)
+                    np.save(filepath, frame_probs_uint8)
+
+                    # Save some prediction in ply format for visual
+                    if test_loader.dataset.set == 'validation':
+
+                        # Insert false columns for ignored labels
+                        frame_probs_uint8_bis = frame_probs_uint8.copy()
+                        for l_ind, label_value in enumerate(test_loader.dataset.label_values):
+                            if label_value in test_loader.dataset.ignored_labels:
+                                frame_probs_uint8_bis = np.insert(frame_probs_uint8_bis, l_ind, 0, axis=1)
+
+                        # Predicted labels
+                        frame_preds = test_loader.dataset.label_values[np.argmax(frame_probs_uint8_bis,
+                                                                                 axis=1)].astype(np.int32)
+
+                        # Save some of the frame pots
+                        if f_ind % 20 == 0:
+                            # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
+                            # velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                            # frame_points = np.fromfile(velo_file, dtype=np.float32)
+                            # frame_points = frame_points.reshape((-1, 4))
+
+                            data = read_ply(test_loader.dataset.files[s_ind][f_ind])
+                            frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+
+                            predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
+                            #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
+                            pots = np.zeros((0,))
+                            if pots.shape[0] > 0:
+                                write_ply(predpath,
+                                          [frame_points[:, :3], frame_labels, frame_preds, pots],
+                                          ['x', 'y', 'z', 'gt', 'pre', 'pots'])
+                            else:
+                                write_ply(predpath,
+                                          [frame_points[:, :3], frame_labels, frame_preds],
+                                          ['x', 'y', 'z', 'gt', 'pre'])
+
+                            # Also Save lbl probabilities
+                            probpath = join(test_path, folder, filename[:-4] + '_probs.ply')
+                            lbl_names = [test_loader.dataset.label_to_names[l]
+                                         for l in test_loader.dataset.label_values
+                                         if l not in test_loader.dataset.ignored_labels]
+                            write_ply(probpath,
+                                      [frame_points[:, :3], frame_probs_uint8],
+                                      ['x', 'y', 'z'] + lbl_names)
+
+                        # keep frame preds in memory
+                        all_f_preds[s_ind][f_ind] = frame_preds
+                        all_f_labels[s_ind][f_ind] = frame_labels
+
+                    else:
+
+                        # Save some of the frame preds
+                        if f_inds[b_i, 1] % 1 == 0:
+
+                            # Insert false columns for ignored labels
+                            for l_ind, label_value in enumerate(test_loader.dataset.label_values):
+                                if label_value in test_loader.dataset.ignored_labels:
+                                    frame_probs_uint8 = np.insert(frame_probs_uint8, l_ind, 0, axis=1)
+
+                            # Predicted labels
+                            frame_preds = test_loader.dataset.label_values[np.argmax(frame_probs_uint8,
+                                                                                     axis=1)].astype(np.int32)
+
+                            # Load points
+                            # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
+                            # velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                            # frame_points = np.fromfile(velo_file, dtype=np.float32)
+                            # frame_points = frame_points.reshape((-1, 4))
+
+                            data = read_ply(test_loader.dataset.files[s_ind][f_ind])
+                            frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+
+                            predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
+                            # print('predpath', predpath)
+                            #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
+                            pots = np.zeros((0,))
+                            if pots.shape[0] > 0:
+                                write_ply(predpath,
+                                          [frame_points[:, :3], frame_preds, pots],
+                                          ['x', 'y', 'z', 'pre', 'pots'])
+                            else:
+                                write_ply(predpath,
+                                          [frame_points[:, :3], frame_preds],
+                                          ['x', 'y', 'z', 'pre'])
+
+                    # Stack all prediction for this epoch
+                    i0 += length
+
+                # Average timing
+                t += [time.time()]
+                mean_dt = 0.95 * mean_dt + 0.05 * (np.array(t[1:]) - np.array(t[:-1]))
+
+                # Display
+                if (t[-1] - last_display) > 1.0:
+                    last_display = t[-1]
+                    message = 'e{:03d}-i{:04d} => {:.1f}% (timings : {:4.2f} {:4.2f} {:4.2f}) / pots {:d} => {:.1f}%'
+                    min_pot = int(torch.floor(torch.min(test_loader.dataset.potentials)))
+                    pot_num = torch.sum(test_loader.dataset.potentials > min_pot + 0.5).type(torch.int32).item()
+                    current_num = pot_num + (i + 1 - config.validation_size) * config.val_batch_num
+                    print(message.format(test_epoch, i,
+                                         100 * i / config.validation_size,
+                                         1000 * (mean_dt[0]),
+                                         1000 * (mean_dt[1]),
+                                         1000 * (mean_dt[2]),
+                                         min_pot,
+                                         100.0 * current_num / len(test_loader.dataset.potentials)))
 
 
+            # Update minimum od potentials
+            new_min = torch.min(test_loader.dataset.potentials)
+            print('Test epoch {:d}, end. Min potential = {:.1f}'.format(test_epoch, new_min))
+
+            if last_min + 1 < new_min:
+
+                # Update last_min
+                last_min += 1
+
+                if test_loader.dataset.set == 'validation' and last_min % 1 == 0:
+
+                    #####################################
+                    # Results on the whole validation set
+                    #####################################
+
+                    # Confusions for our subparts of validation set
+                    Confs = np.zeros((len(predictions), nc_tot, nc_tot), dtype=np.int32)
+                    for i, (preds, truth) in enumerate(zip(predictions, targets)):
+
+                        # Confusions
+                        Confs[i, :, :] = fast_confusion(truth, preds, test_loader.dataset.label_values).astype(np.int32)
 
 
+                    # Show vote results
+                    print('\nCompute confusion')
 
+                    val_preds = []
+                    val_labels = []
+                    t1 = time.time()
+                    for i, seq_frames in enumerate(test_loader.dataset.frames):
+                        val_preds += [np.hstack(all_f_preds[i])]
+                        val_labels += [np.hstack(all_f_labels[i])]
+                    val_preds = np.hstack(val_preds)
+                    val_labels = np.hstack(val_labels)
+                    t2 = time.time()
+                    C_tot = fast_confusion(val_labels, val_preds, test_loader.dataset.label_values)
+                    t3 = time.time()
+                    print(' Stacking time : {:.1f}s'.format(t2 - t1))
+                    print('Confusion time : {:.1f}s'.format(t3 - t2))
 
+                    s1 = '\n'
+                    for cc in C_tot:
+                        for c in cc:
+                            s1 += '{:7.0f} '.format(c)
+                        s1 += '\n'
+                    if debug:
+                        print(s1)
 
+                    # Remove ignored labels from confusions
+                    for l_ind, label_value in reversed(list(enumerate(test_loader.dataset.label_values))):
+                        if label_value in test_loader.dataset.ignored_labels:
+                            C_tot = np.delete(C_tot, l_ind, axis=0)
+                            C_tot = np.delete(C_tot, l_ind, axis=1)
 
+                    # Objects IoU
+                    val_IoUs = IoU_from_confusions(C_tot)
 
+                    # Compute IoUs
+                    mIoU = np.mean(val_IoUs)
+                    s2 = '{:5.2f} | '.format(100 * mIoU)
+                    for IoU in val_IoUs:
+                        s2 += '{:5.2f} '.format(100 * IoU)
+                    print(s2 + '\n')
 
+                    # Save a report
+                    report_file = join(report_path, 'report_{:04d}.txt'.format(int(np.floor(last_min))))
+                    str = 'Report of the confusion and metrics\n'
+                    str += '***********************************\n\n\n'
+                    str += 'Confusion matrix:\n\n'
+                    str += s1
+                    str += '\nIoU values:\n\n'
+                    str += s2
+                    str += '\n\n'
+                    with open(report_file, 'w') as f:
+                        f.write(str)
 
+            test_epoch += 1
 
+            # Break when reaching number of desired votes
+            if last_min > num_votes:
+                break
 
+        return
 
+    def intermedian_features(self, net, test_loader, config):
+        """
+        Method to return only inter-blocks features for slam segmentation models
+        """
 
+        ############
+        # Initialize
+        ############
 
+        # Test saving path
+        test_path = None
+        report_path = None
+        if config.saving:
+            test_path = join('test', config.saving_path.split('/')[-1])
+            # print("\n\ntest_path:", test_path)
+            
+            if not exists(test_path):
+                makedirs(test_path)
+            report_path = join(test_path, 'reports')
+            if not exists(report_path):
+                makedirs(report_path)
 
+        if test_loader.dataset.set == 'validation':
+            for folder in ['val_predictions', 'val_probs']:
+                if not exists(join(test_path, folder)):
+                    makedirs(join(test_path, folder))
+        else:
+            for folder in ['predictions', 'probs']:
+                if not exists(join(test_path, folder)):
+                    makedirs(join(test_path, folder))
 
+        #####################
+        # Network predictions
+        #####################
 
+        print('Initialize workers')
+        t = time.time()
+        break_cnt = 0
+        for i, batch in enumerate(test_loader):
+            # new batch should be a list of query batch, positive batches, negative batches, 7 pcds in total.
 
+            # continue if empty input list is given
+            # caused by empty positive neighbors
+            if len(batch.points) == 0:
+                break_cnt +=1
+                continue
+            else:
+                break_cnt = 0
+            # stop fetch new batch if no more points left
+            if break_cnt > 4:
+                break
 
+            if 'cuda' in self.device.type:
+                batch.to(self.device)
+
+            # print('   length of each pcd in each layer in the batch')
+            # for length in batch.lengths:
+            #     print(length)
+
+            # # Forward pass
+            # outputs = net(batch, config)
+
+            # Get intermediate features
+            # with dims [a, 64] [b, 128] [c, 256] [d, 512] [e, 1024]
+            # inter_en_feat is a list of torch tensors
+            inter_en_feat = net.inter_encoder_features(batch, config)
+
+            
+            # Dictionary of query, positive, negative point cloud features
+            feat_vecs = {'query': [[]], 'positive': [[], []], 
+                         'negative': [[], [], [], []]}
+            feat_keys = ['query', 'positive', 'positive', 
+                         'negative', 'negative', 'negative', 'negative']
+            feats_idx = [0, 0, 1, 0, 1, 2, 3]
+            print('  ', len(inter_en_feat), 'intermediate features stored')
+            for m, feat in enumerate(inter_en_feat):
+                feat = feat.to(torch.device("cpu"))
+                layer_length = batch.lengths[m].to(torch.device("cpu"))
+                # separate query, positive, and negative
+                ind = 0
+                print(feat.size(), layer_length)
+                for n, l in enumerate(layer_length):
+                    one_feat = feat[ind:ind+l, :]
+                    # store the feature vector in the corresponding place
+                    key = feat_keys[n]
+                    idx = feats_idx[n]
+                    feat_vecs[key][idx].append(one_feat)
+                    ind += l
+            
+            # # test
+            # for key, vals in feat_vecs.items():
+            #     for val in vals:
+            #         print(key)
+            #         for layer in range(5):
+            #             print(val[layer].size())
+
+            
+            print('   done in {:.1f}s.'.format(time.time() - t))
+            t = time.time()
+
+            ## Manually release gpu memory?
+            if 'cuda' in self.device.type:
+                batch.to(torch.device("cpu"))
+        
+        return 
+        return inter_en_feat
 

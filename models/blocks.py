@@ -490,7 +490,9 @@ class UnaryBlock(nn.Module):
         return
 
     def forward(self, x, batch=None):
+        # print('inside unary block: ', x.size())
         x = self.mlp(x)
+        # if no batch normalisation, simply add a bias here.
         x = self.batch_norm(x)
         if not self.no_relu:
             x = self.leaky_relu(x)

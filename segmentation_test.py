@@ -260,9 +260,9 @@ if __name__ == '__main__':
     #     else:
     #         x = 2.5
     #         y = -y
-    #     ax.plot([x], [y], '.', color=(test_dataset.colour_to_label[i][0]/255.0, 
-    #                                 test_dataset.colour_to_label[i][1]/255.0, 
-    #                                 test_dataset.colour_to_label[i][2]/255.0),  
+    #     ax.plot([x], [y], '.', color=(test_dataset.label_to_colour[i][0]/255.0, 
+    #                                 test_dataset.label_to_colour[i][1]/255.0, 
+    #                                 test_dataset.label_to_colour[i][2]/255.0),  
     #             markersize=40) 
     #     ax.text(x+0.25, y-0.5, test_dataset.label_to_names[i], fontsize=15)
     # # plot color annotation

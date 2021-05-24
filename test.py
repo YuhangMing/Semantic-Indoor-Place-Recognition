@@ -18,7 +18,7 @@ if __name__ == '__main__':
                     12: 'clutter'
                     }
     # Dict from labels to colours
-    colour_to_label = {0: [ 233, 229, 107], #'ceiling' .-> .yellow
+    label_to_colour = {0: [ 233, 229, 107], #'ceiling' .-> .yellow
                     1: [  95, 156, 196], #'floor' .-> . blue
                     2: [ 179, 116,  81], #'wall'  ->  brown
                     3: [ 241, 149, 131], #'beam'  ->  salmon
@@ -44,9 +44,9 @@ if __name__ == '__main__':
         else:
             x = 2.5
             y = -y
-        ax.plot([x], [y], '.', color=(colour_to_label[i][0]/255.0, 
-                                    colour_to_label[i][1]/255.0, 
-                                    colour_to_label[i][2]/255.0),  
+        ax.plot([x], [y], '.', color=(label_to_colour[i][0]/255.0, 
+                                    label_to_colour[i][1]/255.0, 
+                                    label_to_colour[i][2]/255.0),  
                 markersize=40) 
         ax.text(x+0.25, y-0.5, label_to_names[i], fontsize=15)
     plt.show()

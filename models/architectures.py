@@ -343,6 +343,7 @@ class KPFCNN(nn.Module):
 
         return x
     
+    # -Yohann
     def inter_encoder_features(self, batch, config):
         # Get input features
         x = batch.features.clone().detach()
@@ -360,6 +361,7 @@ class KPFCNN(nn.Module):
                 previous_num = x.size(0)
             else:
                 previous_x = x
+        # add last output
         intermediate_features += [previous_x]
         
         return intermediate_features

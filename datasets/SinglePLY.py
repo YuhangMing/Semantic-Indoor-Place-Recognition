@@ -79,7 +79,7 @@ class SinglePlyDataset(PointCloudDataset):
                                11: 'board',
                                12: 'clutter'}
         # Dict from labels to colours
-        self.colour_to_label = {0: [ 233, 229, 107], #'ceiling' .-> .yellow
+        self.label_to_colour = {0: [ 233, 229, 107], #'ceiling' .-> .yellow
                                 1: [  95, 156, 196], #'floor' .-> . blue
                                 2: [ 179, 116,  81], #'wall'  ->  brown
                                 3: [ 241, 149, 131], #'beam'  ->  salmon

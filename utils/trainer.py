@@ -78,6 +78,13 @@ class ModelTrainer:
         deform_params = [v for k, v in net.named_parameters() if 'offset' in k]
         other_params = [v for k, v in net.named_parameters() if 'offset' not in k]
         deform_lr = config.learning_rate * config.deform_lr_factor
+
+        ## Explanation ##
+        # set different learning rate for different layers/parameters in the model
+        # following code means:
+        # "deform_params" are learned with "deform_lr"
+        # "other_params" are learned with "config.learning_rate"
+        # same 'momentum' and 'weight_decay' will be used for all parameters
         self.optimizer = torch.optim.SGD([{'params': other_params},
                                           {'params': deform_params, 'lr': deform_lr}],
                                          lr=config.learning_rate,
@@ -747,7 +754,7 @@ class ModelTrainer:
                 preds = val_loader.dataset.label_values[np.argmax(proj_probs, axis=1)]
 
                 # Save predictions in a binary file
-                filename = '{:s}_{:07d}.npy'.format(val_loader.dataset.sequences[s_ind], f_ind)
+                filename = '{:s}_{:07d}.npy'.format(val_loader.dataset.scenes[s_ind], f_ind)
                 filepath = join(config.saving_path, 'val_preds', filename)
                 if exists(filepath):
                     frame_preds = np.load(filepath)
@@ -758,10 +765,13 @@ class ModelTrainer:
 
                 # Save some of the frame pots
                 if f_ind % 20 == 0:
-                    seq_path = join(val_loader.dataset.path, 'sequences', val_loader.dataset.sequences[s_ind])
-                    velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                    frame_points = np.fromfile(velo_file, dtype=np.float32)
-                    frame_points = frame_points.reshape((-1, 4))
+                    # seq_path = join(val_loader.dataset.path, val_loader.dataset.scenes[s_ind])
+                    # velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                    # frame_points = np.fromfile(velo_file, dtype=np.float32)
+                    # frame_points = frame_points.reshape((-1, 4))
+
+                    data = read_ply(val_loader.dataset.files[s_ind][f_ind])
+                    frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
                     write_ply(filepath[:-4] + '_pots.ply',
                               [frame_points[:, :3], frame_labels, frame_preds],
                               ['x', 'y', 'z', 'gt', 'pre'])

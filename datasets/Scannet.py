@@ -96,7 +96,7 @@ class ScannetDataset(PointCloudDataset):
                                }
         # Dict from labels to colours
         # color values for each class TO BE ADDED
-        self.colour_to_label = {0:  [0,   0,   0],   # black -> 'unclassified'
+        self.label_to_colour = {0:  [0,   0,   0],   # black -> 'unclassified'
                                 1:  [174, 198, 232], # light purple -> 'wall',
                                 2:  [151, 223, 137], # lime -> 'floor',
                                 3:  [31,  120, 180], # dark blue -> 'cabinet'
