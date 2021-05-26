@@ -344,7 +344,7 @@ class KPFCNN(nn.Module):
         return x
     
     # -Yohann
-    def inter_encoder_features(self, batch, config):
+    def inter_encoder_features(self, batch):
         # Get input features
         x = batch.features.clone().detach()
 

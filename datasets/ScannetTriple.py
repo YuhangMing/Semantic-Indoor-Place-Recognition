@@ -70,6 +70,7 @@ class ScannetTripleDataset(PointCloudDataset):
 
         # Dataset folder
         self.path = '/media/yohann/My Passport/datasets/ScanNet'
+        # self.path = '/mnt/nas_7/datasets/ScanNet'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'registration'
@@ -180,7 +181,7 @@ class ScannetTripleDataset(PointCloudDataset):
         self.fids = []          # list of list of frame id used to create pcd
         self.poses = []         # list of list of frame pose used to create pcd
         self.files = []         # list of list of pcd files created, pts in camera coordinate frame
-        # training only
+        # training/val only
         self.pos_thred = 2**2
         self.centers = []       # list of list of pcd centers in world coordinate frame
         self.posIds = []        # list of dictionary of positive pcd example ids for training
@@ -307,69 +308,73 @@ class ScannetTripleDataset(PointCloudDataset):
             # Current/query pcd indices
             s_ind, f_ind = self.all_inds[ind]
 
-            ## items should be generated here:
-            # reference to pointnet_vlad: train_pointnetvlad.py
-            # current pcd index:        s_ind & f_ind;
-            # positive pcd indices:     [pos_s_inds, pos_f_inds]; default 2
-            # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 18 (4 in dh3d)
-            # other negative pcd index: o_s_ind, o_f_ind.
+            if self.set in ['training', 'validation']:
+                ## items should be generated here:
+                # reference to pointnet_vlad: train_pointnetvlad.py
+                # current pcd index:        s_ind & f_ind;
+                # positive pcd indices:     [pos_s_inds, pos_f_inds]; default 2
+                # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 18 (4 in dh3d)
+                # other negative pcd index: o_s_ind, o_f_ind.
 
-            num_pos_ids = len(self.posIds[s_ind][f_ind])
-            if num_pos_ids < 2:
-                print('Skip current pcd (', self.files[s_ind][f_ind].split('/')[-1], ') due to empty positives.')
-                return []
-            # print('Current pcd index:', s_ind, f_ind)
-            # print('Positive lists:', self.posIds[s_ind][f_ind])
-            # print('Negative lists:', self.negIds[s_ind][f_ind])
+                num_pos_ids = len(self.posIds[s_ind][f_ind])
+                if num_pos_ids < 2:
+                    print('Skip current pcd (', self.files[s_ind][f_ind].split('/')[-1], ') due to empty positives.')
+                    return []
+                # print('Current pcd index:', s_ind, f_ind)
+                # print('Positive lists:', self.posIds[s_ind][f_ind])
+                # print('Negative lists:', self.negIds[s_ind][f_ind])
 
-            # Positive pcd indices
-            # pos_s_ind = s_ind
-            # tmp_f_inds = np.random.randint(0, num_pos_ids, 2)
-            # pos_f_inds = np.array(self.posIds[s_ind][f_ind])[tmp_f_inds]
-            pos_f_inds = [np.random.choice( self.posIds[s_ind][f_ind] )] 
-            # 2 positives, ensure not choose the same positive pcd
-            while True:
-                tmp = np.random.choice( self.posIds[s_ind][f_ind] ) 
-                if tmp != pos_f_inds[0]:
-                    pos_f_inds.append(tmp)
-                    break
-            pos_f_inds = np.array(pos_f_inds)
-            # print(num_pos_ids, pos_s_ind, pos_f_inds)
-            
-            # Negative pcd indices
-            neg_s_inds = np.random.randint(0, len(self.scenes), 4)
-            neg_f_inds = []
-            for id, neg_s in enumerate(neg_s_inds):
-                if neg_s == s_ind:
-                    # if no negative ids for current pcd
-                    # generate neg id from another scene
-                    if len(self.negIds[neg_s][f_ind]) == 0:
-                        tmp = np.random.randint(0, len(self.scenes))
-                        while tmp == s_ind:
+                # Positive pcd indices
+                # pos_s_ind = s_ind
+                # tmp_f_inds = np.random.randint(0, num_pos_ids, 2)
+                # pos_f_inds = np.array(self.posIds[s_ind][f_ind])[tmp_f_inds]
+                pos_f_inds = [np.random.choice( self.posIds[s_ind][f_ind] )] 
+                # 2 positives, ensure not choose the same positive pcd
+                while True:
+                    tmp = np.random.choice( self.posIds[s_ind][f_ind] ) 
+                    if tmp != pos_f_inds[0]:
+                        pos_f_inds.append(tmp)
+                        break
+                pos_f_inds = np.array(pos_f_inds)
+                # print(num_pos_ids, pos_s_ind, pos_f_inds)
+                
+                # Negative pcd indices
+                neg_s_inds = np.random.randint(0, len(self.scenes), 4)
+                neg_f_inds = []
+                for id, neg_s in enumerate(neg_s_inds):
+                    if neg_s == s_ind:
+                        # if no negative ids for current pcd
+                        # generate neg id from another scene
+                        if len(self.negIds[neg_s][f_ind]) == 0:
                             tmp = np.random.randint(0, len(self.scenes))
-                        neg_s_inds[id] = tmp
-                        neg_f_inds.append(np.random.randint(0, len(self.fids[tmp])))
-                    # randomly choose one from the negative ids
+                            while tmp == s_ind:
+                                tmp = np.random.randint(0, len(self.scenes))
+                            neg_s_inds[id] = tmp
+                            neg_f_inds.append(np.random.randint(0, len(self.fids[tmp])))
+                        # randomly choose one from the negative ids
+                        else:
+                            neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
                     else:
-                        neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
-                else:
-                    neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
-            neg_f_inds = np.array(neg_f_inds)
-            # print(neg_s_inds, neg_f_inds)
+                        neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
+                neg_f_inds = np.array(neg_f_inds)
+                # print(neg_s_inds, neg_f_inds)
 
-            # Other negative pcd index for quadruplet
-            # skip for now
+                # Other negative pcd index for quadruplet
+                # skip for now
 
-            all_indices = [[s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]], 
-                           [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
-                           [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
-            # print('All chosen indices: [query/current], [positive]*2, [negative]*4', all_indices)
-
+                all_indices = [[s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]], 
+                            [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
+                            [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
+                # print('All chosen indices: [query/current], [positive]*2, [negative]*4', all_indices)
+            else:
+                # in testing, only get the current index
+                all_indices = [[s_ind, f_ind]]
 
             for s_ind, f_ind in all_indices:
                 #################
                 # Load the points
-                # NOTE all points are in camera coordinate frame
+                # NOTE all points are in camera 
+                #      coordinate frame
                 #################
 
                 current_file = self.files[s_ind][f_ind]
@@ -453,11 +458,13 @@ class ScannetTripleDataset(PointCloudDataset):
                     # get val_points that are in range
                     radiuses = np.sum(np.square(o_pts - p0), axis=1)
                     reproj_mask = radiuses < (0.99 * self.in_R) ** 2
-
-                    # Project predictions on the frame points
-                    search_tree = KDTree(sub_pts, leaf_size=10)
-                    proj_inds = search_tree.query(o_pts[reproj_mask, :], return_distance=False)
-                    proj_inds = np.squeeze(proj_inds).astype(np.int32)
+                    
+                    #### !!!! DONT NEED THIS KDTREE FOR VLAD TEST //- Yohann
+                    proj_inds = np.zeros((0,))
+                    # # Project predictions on the frame points
+                    # search_tree = KDTree(sub_pts, leaf_size=10)
+                    # proj_inds = search_tree.query(o_pts[reproj_mask, :], return_distance=False)
+                    # proj_inds = np.squeeze(proj_inds).astype(np.int32)
                 else:
                     proj_inds = np.zeros((0,))
                     reproj_mask = np.zeros((0,))
@@ -561,7 +568,7 @@ class ScannetTripleDataset(PointCloudDataset):
         # Get Label
         ###########
         # Mapping from annot to NYU labels ID
-        label_files = join(self.path, 'scans', 'scannetv2-labels.combined.tsv')
+        label_files = join(self.path, 'scannetv2-labels.combined.tsv')
         with open(label_files, 'r') as f:
             lines = f.readlines()
             names1 = [line.split('\t')[1] for line in lines[1:]]
@@ -749,14 +756,14 @@ class ScannetTripleDataset(PointCloudDataset):
         if self.set in ['training', 'validation']:
             self.class_proportions = np.ones((self.num_classes,), dtype=np.int32)
 
-        # Add variables for validation
-        if self.set == 'validation':
-            self.val_points = []
-            self.val_labels = []
-            self.val_confs = []
+        # # Add variables for validation
+        # if self.set == 'validation':
+        #     self.val_points = []
+        #     self.val_labels = []
+        #     self.val_confs = []
 
-            for s_ind, seq_frames in enumerate(self.files):
-                self.val_confs.append(np.zeros((len(seq_frames), self.num_classes, self.num_classes)))
+        #     for s_ind, seq_frames in enumerate(self.files):
+        #         self.val_confs.append(np.zeros((len(seq_frames), self.num_classes, self.num_classes)))
     
     def parse_scene_info(self, filename):
         """ read information file with given filename
@@ -888,7 +895,10 @@ class ScannetTripleSampler(Sampler):
                 _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
             else:
                 # means the whole dataset is finished without the necessary steps
-                gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+                if self.dataset.set in ['training', 'validation']:
+                    gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+                else:
+                    gen_indices = torch.arange(0, self.dataset.potentials.shape[0])
 
             # Update potentials (Change the order for the next epoch)
             self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])

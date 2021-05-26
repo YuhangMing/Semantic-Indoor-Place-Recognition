@@ -83,12 +83,12 @@ class PRNet(nn.Module):
         # n: list of 4 tensors
         
         # First try: TripletLoss
+        # cat to meet tripletloss input requirement
         anc = torch.cat((a,a,a,a,a,a,a,a), dim=0)
         pos = torch.cat((p[0],p[0],p[0],p[0],
                          p[1],p[1],p[1],p[1]), dim=0)
         neg = torch.cat((n[0],n[1],n[2],n[3],
                          n[0],n[1],n[2],n[3]), dim=0)
-
         # compute loss
         loss = self.criterion(anc, pos, neg)
         
@@ -96,7 +96,7 @@ class PRNet(nn.Module):
     # def accuracy(outputs):
 
 
-# adopted from https://github.com/cattaneod/PointNetVlad-Pytorch/blob/master/models/PointNetVlad.py
+# modified from https://github.com/cattaneod/PointNetVlad-Pytorch/blob/master/models/PointNetVlad.py
 class NetVLAD(nn.Module):
     def __init__(self, feature_size, max_samples, cluster_size, output_dim,
                  gating=True, add_batch_norm=True):
@@ -116,7 +116,6 @@ class NetVLAD(nn.Module):
         # 1024*64 -> 256
         self.FC_2 = nn.Linear(feature_size*cluster_size, output_dim, bias=True)
 
-        
         # # (1024, 128)
         # self.cluster_weights = nn.Parameter(torch.randn(
         #     feature_size, cluster_size) * 1 / math.sqrt(feature_size))

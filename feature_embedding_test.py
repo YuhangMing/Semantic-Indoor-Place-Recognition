@@ -2,9 +2,10 @@
 #
 #      0=================================0
 #      |    Kernel Point Convolutions    |
+#      |    Semantic VLAD Recognition    |
 #      0=================================0
 #
-#      Yuhang Modifidation
+#      Yuhang 
 #
 
 
@@ -15,116 +16,66 @@
 #
 
 # Common libs
-import signal
-import sys
 import os
+# import sys
+import signal
 import numpy as np
 import torch
 
 # Dataset
 from torch.utils.data import DataLoader
 # stanford cloud segmentation
-from datasets.S3DIS import *
+# from datasets.S3DIS import *
 # scannet cloud segmentation
-from datasets.Scannet import *
+# from datasets.Scannet import *
 # cloud segmentation using rgbd pcd from 7 scenes
-from datasets.SinglePLY import *
+# from datasets.SinglePLY import *
 # SLAM segmentation
-from datasets.ScannetSLAM import *
+# from datasets.ScannetSLAM import *
 # vlad
 from datasets.ScannetTriple import *
 
-from utils.config import Config
-from utils.tester import ModelTester
 from models.architectures import KPFCNN
 from models.PRNet import PRNet
+from utils.config import Config
+from utils.trainer import RecogModelTrainer
+# from utils.tester import ModelTester
 
-# Visualisation
-import open3d as o3d
-import matplotlib.pyplot as plt
+# VLAD
+from sklearn.neighbors import KDTree
 
-
-def model_choice(chosen_log):
-
-    ###########################
-    # Call the test initializer
-    ###########################
-
-    # Automatically retrieve the last trained model
-    if chosen_log in ['last_ModelNet40', 'last_ShapeNetPart', 'last_S3DIS']:
-
-        # Dataset name
-        test_dataset = '_'.join(chosen_log.split('_')[1:])
-        # print(test_dataset)
-
-        # List all training logs
-        logs = np.sort([os.path.join('results', f) for f in os.listdir('results') if f.startswith('Log')])
-        # print(logs)
-
-        # Find the last log of asked dataset
-        for log in logs[::-1]:
-            log_config = Config()
-            log_config.load(log)
-            if log_config.dataset.startswith(test_dataset):
-                chosen_log = log
-                break
-        # print(chosen_log)
-
-        if chosen_log in ['last_ModelNet40', 'last_ShapeNetPart', 'last_S3DIS']:
-            raise ValueError('No log of the dataset "' + test_dataset + '" found')
-
-    # Check if log exists
-    if not os.path.exists(chosen_log):
-        raise ValueError('The given log does not exists: ' + chosen_log)
-
-    return chosen_log
-
+# # Visualisation
+# import open3d as o3d
+# import matplotlib.pyplot as plt
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
 #           Main Call
 #       \***************/
 #
+#
+#   use single GPU, use 
+#   export CUDA_VISIBLE_DEVICES=3
+#   in terminal
+#
+
+bTRAIN = False
 
 if __name__ == '__main__':
 
-    #########################
-    # Choose the model to use
-    #########################
+    ######################
+    # LOAD THE PRE-TRAINED 
+    # SEGMENTATION NETWORK
+    ######################
 
-    print('\nEnvironment Setup')
-    print('*****************')
-
-    #   Here you can choose which model you want to test with the variable test_model. Here are the possible values :
-    #
-    #       > 'last_XXX': Automatically retrieve the last trained model on dataset XXX
-    #       > '(old_)results/Log_YYYY-MM-DD_HH-MM-SS': Directly provide the path of a trained model
-
-    # chosen_log = 'last_S3DIS'
-    # chosen_log = 'results/Log_2021-04-19_10-01-23'  # => S3DIS, batch 4, 1st feat 64, 0.04-2.0
+    print('\nLoad pre-trained segmentation KP-FCNN')
+    print('*************************************')
+    t = time.time()
     # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
     chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
-    # Deal with 'last_XXXXXX' choices
-    chosen_log = model_choice(chosen_log)
-
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = None
-
-    print('Chosen log:', chosen_log, chkp_idx)
-    
-    ############################
-    # Initialize the environment
-    ############################
-
-    # Set which gpu is going to be used
-    GPU_ID = '0'
-
-    # Set GPU visible device
-    os.environ['CUDA_VISIBLE_DEVICES'] = GPU_ID
-
-    ###############
-    # Previous chkp
-    ###############
+    print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
     # Find all checkpoints in the chosen training folder
     chkp_path = os.path.join(chosen_log, 'checkpoints')
@@ -140,15 +91,11 @@ if __name__ == '__main__':
     chosen_chkp = os.path.join(chosen_log, 'checkpoints', chosen_chkp)
     print('Checkpoints chosen:', chosen_chkp)
 
-    ##################################
-    # Change model parameters for test
-    ##################################
-
-    # Initialize configuration class
+    # Initialise and Load the configs
     config = Config()
     config.load(chosen_log)
-
-    # Change parameters for the test here. For example, you can stop augmenting the input data.
+    # Change parameters for the TESTing here. 
+    # For example, you can stop augmenting the input data.
     #config.augment_noise = 0.0001
     #config.augment_symmetries = False
     config.batch_num = 1        # for cloud segmentation
@@ -157,102 +104,21 @@ if __name__ == '__main__':
     config.validation_size = 50    # decide how many points will be covered in prediction -> how many forward passes
     # 50 is a suitable value to cover a room-scale point cloud
     # 4 is a suitable value to cover a rgbd slam input size point cloud
-    # set to number of frames in SLAM segmentaion
     config.input_threads = 0
     config.print_current()
 
-
-    #################################################################################
-    
-    ##############
-    # Prepare Data
-    ##############
-
-    print('\nData Preparation')
-    print('****************')
-    # new dataset for triplet input
-    train_dataset = ScannetTripleDataset(config, 'training', balance_classes=False)
-    # val_dataset = ScannetTripleDataset(config, 'validation', balance_classes=False)
-    
-    # train_batch = train_dataset[0]
-    # val_batch = val_dataset[0]
-    # # print(test_batch)
-
-    # Initialize samplers
-    train_sampler = ScannetTripleSampler(train_dataset)
-    # val_sampler = ScannetTripleSampler(val_dataset)
-
-    # Initialize the dataloader
-    train_loader = DataLoader(train_dataset,
-                                 batch_size=1,
-                                 sampler=train_sampler,
-                                 collate_fn=ScannetTripleCollate,
-                                 num_workers=config.input_threads,
-                                 pin_memory=True)
-    # val_loader = DataLoader(val_dataset,
-    #                          batch_size=1,
-    #                          sampler=val_sampler,
-    #                          collate_fn=ScannetTripleCollate,
-    #                          num_workers=config.input_threads,
-    #                          pin_memory=True)
-
-    # ## test
-    # for i, batch in enumerate(train_loader):
-    #     print(batch.lengths)
-    #     break
-
-    # Calibrate samplers
-    train_sampler.calibration(train_loader, verbose=True)
-    # val_sampler.calibration(val_loader, verbose=True)
-    print('Calibed batch limit:', train_sampler.dataset.batch_limit)
-    print('Calibed neighbor limit:', train_sampler.dataset.neighborhood_limits)
-    
-
-
-    print('\nModel Preparation')
-    print('*****************')
-    t1 = time.time()
-
-    ##############
-    # Architecture
-    ##############
-
-    if config.dataset_task in ['cloud_segmentation', 'slam_segmentation', 'registration']:
-        seg_net = KPFCNN(config, train_dataset.label_values, train_dataset.ignored_labels)
-        reg_net = PRNet(config)
-    else:
-        raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)
-    
-    ############
-    # Parameters
-    ############
-
-    # Choose to train on CPU or GPU
+    # set label manually here for scannet segmentation
+    # with the purpose of putting loading parts together
+    label_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+    ignored_labels = [0]
+    # Initialise segmentation network
+    seg_net = KPFCNN(config, label_values, ignored_labels)
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
     else:
-        device = torch.device("cpu")
+        device = torch.device("cpu")        
     seg_net.to(device)
-
-    reg_net.to(device)
-
-    # for k, v in seg_net.named_parameters():
-    #     print(k, v)    
-    # print(seg_net.named_parameters())
-    # for k, v in reg_net.named_parameters():
-    #     print(k, v)
-    # print(reg_net.named_parameters())
-
-    optimizer = torch.optim.SGD(reg_net.parameters(),
-                                lr=0.01,
-                                momentum=0.98,
-                                weight_decay=0.001)
-
-    ##########################
-    # Load previous checkpoint
-    ##########################
-
-    # load pretrained weights
+    # Load pretrained weights
     checkpoint = torch.load(chosen_chkp)
     # print(checkpoint.keys())    # ['epoch', 'model_state_dict', 'optimizer_state_dict', 'saving_path']
     # print(checkpoint['model_state_dict'].keys())    # where weights are stored
@@ -260,34 +126,176 @@ if __name__ == '__main__':
     seg_net.load_state_dict(checkpoint['model_state_dict'])
     # number of epoch trained
     epoch = checkpoint['epoch']
+    
     # set to evaluation mode
-    seg_net.eval()
     # Dropout and BatchNorm (and maybe some custom modules) behave differently during training and 
     # evaluation. You must let the model know when to switch to eval mode by calling .eval() on 
     # the model. This sets self.training to False for every module in the model. 
+    seg_net.eval()
+    
+    print("SEGMENTATION model and training state restored with", epoch, "epoches trained.")
+    print('Done in {:.1f}s\n'.format(time.time() - t))
 
-    print("Model and training state restored with", epoch, "epoches trained.")
-    print('Done in {:.1f}s\n'.format(time.time() - t1))
+    if bTRAIN:
 
-    ####################
-    # Train Next Network
-    ####################
+        ###########################
+        # TRAIN RECOGNITION NETWORK
+        ###########################
 
-    saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
+        print('\nData Preparation')
+        print('****************')
+        t = time.time()
+        # new dataset for triplet input
+        train_dataset = ScannetTripleDataset(config, 'training', balance_classes=False)
+        # val_dataset = ScannetTripleDataset(config, 'validation', balance_classes=False)
 
-    # Checkpoints directory
-    checkpoint_directory = join(saving_path, 'checkpoints')
-    if not exists(checkpoint_directory):
-        makedirs(checkpoint_directory)
+        # Initialize samplers
+        train_sampler = ScannetTripleSampler(train_dataset)
+        # val_sampler = ScannetTripleSampler(val_dataset)
 
-    print('Initialize workers')
-    t = time.time()
-    epoch = 0
-    break_cnt = 0
-    for epoch in range(170):
-        for i, batch in enumerate(train_loader):
-            # new batch should be a stack of query batch, positive batches, negative batches, 7 pcds in total.
+        # Initialize the dataloader
+        train_loader = DataLoader(train_dataset, batch_size=1, sampler=train_sampler,
+                                collate_fn=ScannetTripleCollate, num_workers=config.input_threads,
+                                pin_memory=True)
+        # val_loader = DataLoader(val_dataset, batch_size=1, sampler=val_sampler,
+        #                          collate_fn=ScannetTripleCollate, num_workers=config.input_threads,
+        #                          pin_memory=True)
 
+        # Calibrate samplers
+        train_sampler.calibration(train_loader, verbose=True)
+        # val_sampler.calibration(val_loader, verbose=True)
+        print('Calibed batch limit:', train_sampler.dataset.batch_limit)
+        print('Calibed neighbor limit:', train_sampler.dataset.neighborhood_limits)
+        print('Done in {:.1f}s\n'.format(time.time() - t))
+
+        
+        print('\nPrepare Recognition Model')
+        print('*************************')
+        reg_net = PRNet(config)
+        # for k, v in reg_net.named_parameters():
+        #     print(k, v)
+        # print(reg_net.named_parameters())
+
+        # Choose here if you want to start training from a previous snapshot (None for new training)
+        # previous_training_path = 'Recog_Log_2021-05-24_14-15-04'
+        previous_training_path = ''
+
+        # Choose index of checkpoint to start from. If None, uses the latest chkp
+        chkp_idx = None # override here
+        if previous_training_path:
+            # Find all snapshot in the chosen training folder
+            chkp_path = os.path.join('results', previous_training_path, 'checkpoints') # override here
+            chkps = [f for f in os.listdir(chkp_path) if f[:4] == 'chkp'] # override here
+            # Find which snapshot to restore
+            if chkp_idx is None:
+                chosen_chkp = 'current_chkp.tar'
+            else:
+                chosen_chkp = np.sort(chkps)[chkp_idx]
+            chosen_chkp = os.path.join('results', previous_training_path, 'checkpoints', chosen_chkp)
+        else:
+            chosen_chkp = None
+
+        # update parameters for recog training
+        config.max_epoch = 50
+        config.checkpoint_gap = 10
+        if config.saving:
+            config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
+        print('Updated max_epoch =', config.max_epoch)
+        print('Updated checkpoint_gap =', config.checkpoint_gap)
+        print('Updated saving_path =', config.saving_path)
+
+
+        print('\nPrepare Trainer')
+        print('***************')
+        # initialise trainier
+        trainer = RecogModelTrainer(reg_net, config)
+        
+        print('\nStart training')
+        print('**************')
+        # TRAINING
+        trainer.train(reg_net, seg_net, train_loader, config)
+        print('Forcing exit now')
+        os.kill(os.getpid(), signal.SIGINT)
+
+    else:
+
+        ##########################
+        # TEST RECOGNITION NETWORK
+        ##########################
+        
+        print('\nLoad pre-trained recognition VLAD')
+        print('*********************************')
+        t = time.time()
+        chosen_log = 'results/Recog_Log_2021-05-25_10-55-26'
+        # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
+        chkp_idx = None
+        print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
+
+        # Find all checkpoints in the chosen training folder
+        chkp_path = os.path.join(chosen_log, 'checkpoints')
+        chkps = [f for f in os.listdir(chkp_path) if f[:4] == 'chkp']
+        print('Checkpoints found:', chkps)
+        # print(np.sort(chkps)) # sort string in alphbatic order
+
+        # Find which snapshot to restore
+        if chkp_idx is None:
+            chosen_chkp = 'current_chkp.tar'
+        else:
+            chosen_chkp = np.sort(chkps)[chkp_idx]
+        chosen_chkp = os.path.join(chosen_log, 'checkpoints', chosen_chkp)
+        print('Checkpoints chosen:', chosen_chkp)
+
+        # Initialise and Load the configs
+        config = Config()
+        config.load(chosen_log)
+        # # Change parameters for the TESTing here. 
+        # config.batch_num = 1        # for cloud segmentation
+        # config.val_batch_num = 1    # for SLAM segmentation
+        # config.validation_size = 50    # decide how many points will be covered in prediction -> how many forward passes
+        # config.input_threads = 0
+        config.print_current()
+
+        # Initialise segmentation network
+        reg_net = PRNet(config)
+        reg_net.to(device)
+
+        # Load pretrained weights
+        checkpoint = torch.load(chosen_chkp)
+        reg_net.load_state_dict(checkpoint['model_state_dict'])
+        epoch = checkpoint['epoch']
+        reg_net.eval()
+
+        print("RECOGNITION model and training state restored with", epoch, "epoches trained.")
+        print('Done in {:.1f}s\n'.format(time.time() - t))
+
+
+        print('\nData Preparation')
+        print('****************')
+        t = time.time()
+        # new dataset for triplet input
+        test_dataset = ScannetTripleDataset(config, 'test', balance_classes=False)
+        test_sampler = ScannetTripleSampler(test_dataset)
+
+        # Initialize the dataloader
+        test_loader = DataLoader(test_dataset, batch_size=1, sampler=test_sampler,
+                                collate_fn=ScannetTripleCollate, num_workers=config.input_threads,
+                                pin_memory=True)
+
+        # Calibrate samplers
+        test_sampler.calibration(test_loader, verbose=True)
+        print('Calibed batch limit:', test_sampler.dataset.batch_limit)
+        print('Calibed neighbor limit:', test_sampler.dataset.neighborhood_limits)
+        print('Done in {:.1f}s\n'.format(time.time() - t))
+
+
+        print('\nGenerate database')
+        print('*****************')
+        t = time.time()
+        # Get database
+        break_cnt = 0
+        map_database= []
+        ind_dict = {}
+        for i, batch in enumerate(test_loader):
             # continue if empty input list is given
             # caused by empty positive neighbors
             if len(batch.points) == 0:
@@ -299,96 +307,69 @@ if __name__ == '__main__':
             if break_cnt > 4:
                 break
 
-            if 'cuda' in device.type:
+            if i%2 == 0:
                 batch.to(device)
+                # get the VLAD descriptor
+                # list of interim vectors
+                feat = seg_net.inter_encoder_features(batch)
+                vlad = reg_net(feat)
+                # print(type(vlad.cpu().detach().numpy()))
+                # print(type(vlad.cpu().detach().numpy()[0]))
+                # print(vlad.cpu().detach().numpy().shape)
+                map_database.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
+                ind_dict[int(i/2)] = i
+            
+        map_database = np.array(map_database)
+        search_tree = KDTree(map_database, leaf_size=4)
+        # print(map_database.shape)
+        print('Done in {:.1f}s\n'.format(time.time() - t))
 
-            # # A Complete Forward Pass in SegNet
-            # outputs = seg_net(batch, config)
-            # Get interim features for place recognition
-            # with dims [a, 64] [b, 128] [c, 256] [d, 512] [e, 1024]
-            # inter_en_feat is a list of torch tensors
-            inter_en_feat = seg_net.inter_encoder_features(batch, config)
+        print('\nStart test')
+        print('**********')
+        t = time.time()
+        # loop again to test with KDTree NN
+        break_cnt = 0
+        test_pair = []
+        for i, batch in enumerate(test_loader):
+            # continue if empty input list is given
+            # caused by empty positive neighbors
+            if len(batch.points) == 0:
+                break_cnt +=1
+                continue
+            else:
+                break_cnt = 0
+            # stop fetch new batch if no more points left
+            if break_cnt > 4:
+                break
+            
+            if i%2 != 0:
+                batch.to(device)
+                # get the VLAD descriptor
+                # list of interim vectors
+                feat = seg_net.inter_encoder_features(batch)
+                vlad = reg_net(feat).cpu().detach().numpy()     # ndarray of (1, 256)
+                dist, ind = search_tree.query(vlad)
+                print(i, ind, ind_dict[ind[0][0]], dist)
+                test_pair.append([i, ind_dict[ind[0][0]]])
 
-            # separate the stacked features to different feature vectors
-            # Dictionary of query, positive, negative point cloud features
-            feat_vecs = {'query': [[]], 'positive': [[], []], 
-                            'negative': [[], [], [], []]}
-            feat_keys = ['query', 'positive', 'positive', 
-                            'negative', 'negative', 'negative', 'negative']
-            feats_idx = [0, 0, 1, 0, 1, 2, 3]
-            # print('\n  ', len(inter_en_feat), 'intermediate features stored, size and length shown below:')
-            for m, feat in enumerate(inter_en_feat):
-                # feat = feat.to(torch.device("cpu"))
-                layer_length = batch.lengths[m].to(torch.device("cpu"))
-                # separate query, positive, and negative
-                ind = 0
-                # print(feat.size(), layer_length)
-                for n, l in enumerate(layer_length):
-                    one_feat = feat[ind:ind+l, :]
-                    # store the feature vector in the corresponding place
-                    key = feat_keys[n]
-                    idx = feats_idx[n]
-                    feat_vecs[key][idx].append(one_feat)
-                    ind += l
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # get vlad descriptor
-            vlad_desp = []
-            for key, vals in feat_vecs.items():
-                for val in vals:
-                    # print(key)
-                    # for layer in range(5):
-                    #     print(val[layer].size())
-                    # print(val) # on cuda:0
-                    descrip = reg_net(val)
-                    # print('descriptor: ', descrip.size())
-                    # print(descrip)
-                    vlad_desp.append(descrip)
-
-            # compute the loss
-            loss = reg_net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:])
-
-            # backward + optimise
-            loss.backward()
-            optimizer.step()
-            torch.cuda.synchronize(device)
-
-            message = 'e{:03d}-i{:04d} => L={:.4f}'
-            print(message.format(epoch, i, loss.item()))
-
-            with open(join(config.saving_path, 'training.txt'), "a") as file:
-                message = '{:d} {:d} {:.3f} {:.3f} {:.3f} {:.3f}\n'
-                file.write(message.format(epoch, i, loss, time.time() - t))
-
-            # print('A complete forward step is done in {:.1f}s.'.format(time.time() - t))
-            t = time.time()
-
-            # ## Manually release gpu memory?
-            # if 'cuda' in device.type:
-            #     batch.to(torch.device("cpu"))
-        #### END loop of batch
-        print('Current epoch {:d} finished.'.format(epoch))
+            # ind = test_loader.dataset.epoch_inds[i]
+            # s_ind, f_ind = test_loader.dataset.all_inds[ind]
+            # current_file = test_loader.dataset.files[s_ind][f_ind]
+            # print(i, ind, s_ind, f_ind, current_file)
+        
+        print('Done in {:.1f}s\n'.format(time.time() - t))
 
 
-        # Get current state dict
-        save_dict = {'epoch': epoch,
-                     'model_state_dict': reg_net.state_dict(),
-                     'optimizer_state_dict': optimizer.state_dict(),
-                     'saving_path': saving_path}
-        # Save current state of the network (for restoring purposes)
-        checkpoint_path = join(checkpoint_directory, 'current_chkp.tar')
-        torch.save(save_dict, checkpoint_path)
-        # Save checkpoints occasionally
-        if (epoch + 1) % config.checkpoint_gap == 0:
-            checkpoint_path = join(checkpoint_directory, 'chkp_{:04d}.tar'.format(epoch + 1))
-            torch.save(save_dict, checkpoint_path)
+        print('\nVisualisation')
+        print('*************')
+        ## Add visualisation here
 
 
     #################################################################################
-    # ^ train recog net
+    # ^ train/test recog net
+    #
     #################################################################################
+    #
     # V test segmentation
     #################################################################################
 
