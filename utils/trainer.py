@@ -177,6 +177,11 @@ class ModelTrainer:
                 if config.saving and not exists(PID_file):
                     continue
 
+                if len(batch.points) == 0:
+                    print('current batch is empty, continue.')
+                    self.step += 1
+                    continue
+
                 ##################
                 # Processing batch
                 ##################

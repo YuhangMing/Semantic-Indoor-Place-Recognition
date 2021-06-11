@@ -381,10 +381,6 @@ class ScannetSLAMDataset(PointCloudDataset):
             sub_lbls = data['class'].astype(np.int32)  # zeros for test set
             # Get center of the first frame in camera coordinates
             p0 = np.mean(sub_pts, axis=0)
-            # Convert p0 to world coordinates
-            # in case of Matrix x Vector, np.dot = np.matmul
-            crnt_pose = self.poses[s_ind][f_ind]
-            p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
             # print("\nSubsampled Cloud Info: ")
             # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
             # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
@@ -422,6 +418,10 @@ class ScannetSLAMDataset(PointCloudDataset):
             else:
                 proj_inds = np.zeros((0,))
                 reproj_mask = np.zeros((0,))
+                # Convert p0 to world coordinates
+                # in case of Matrix x Vector, np.dot = np.matmul
+                crnt_pose = self.poses[s_ind][f_ind]
+                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
             
             ## sub points in camera coordinate system
             ## no need for further augmentation
@@ -479,11 +479,13 @@ class ScannetSLAMDataset(PointCloudDataset):
         stacked_features = np.ones_like(stacked_points[:, :1], dtype=np.float32)
         # print('colors:', features.shape,  type(features[0,0]))
         # print('unit:', stacked_features.shape,  type(stacked_features[0,0]))
-        if self.config.in_features_dim == 4:
+        if self.config.in_features_dim == 1:
+            pass
+        elif self.config.in_features_dim == 4:
             # [1, r, g, b]
             stacked_features = np.hstack((stacked_features, features[:, :3]))
         else: 
-            raise ValueError('Only accepted input dimensions are 4 (without XYZ)')
+            raise ValueError('Only accepted input dimensions as 1 or 4 (without XYZ)')
         # print('features:', stacked_features.shape,  type(stacked_features[0,0]))
         
 
