@@ -168,6 +168,7 @@ class ModelTrainer:
             # Remove File for kill signal
             if epoch == config.max_epoch - 1 and exists(PID_file):
                 remove(PID_file)
+                # QUESTION: Why don't break here directly?
 
             self.step = 0
             for batch in training_loader:
@@ -764,13 +765,16 @@ class ModelTrainer:
 
                 # Save some of the frame pots
                 if f_ind % 20 == 0:
-                    # seq_path = join(val_loader.dataset.path, val_loader.dataset.scenes[s_ind])
-                    # velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                    # frame_points = np.fromfile(velo_file, dtype=np.float32)
-                    # frame_points = frame_points.reshape((-1, 4))
-
-                    data = read_ply(val_loader.dataset.files[s_ind][f_ind])
-                    frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+                    if val_loader.dataset.name == 'SemanticKitti':
+                        seq_path = join(val_loader.dataset.path, 'sequences', val_loader.dataset.scenes[s_ind])
+                        velo_file = join(seq_path, 'velodyne', val_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                        frame_points = np.fromfile(velo_file, dtype=np.float32)
+                        frame_points = frame_points.reshape((-1, 4))
+                    elif val_loader.dataset.name == 'ScannetSLAM':
+                        data = read_ply(val_loader.dataset.files[s_ind][f_ind])
+                        frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+                    else:
+                        raise ValueError('Unknown dataset', val_loader.dataset.name)
                     write_ply(filepath[:-4] + '_pots.ply',
                               [frame_points[:, :3], frame_labels, frame_preds],
                               ['x', 'y', 'z', 'gt', 'pre'])
@@ -931,14 +935,9 @@ class RecogModelTrainer:
         self.step = 0
 
         # SGD optimiser
-        self.optimizer = torch.optim.SGD(net.parameters(),
-                                lr=0.01,
-                                momentum=0.98,
-                                weight_decay=0.001)
-        # # Adam optimiser
-        # self.optimizer = torch.optim.Adam(net.parameters(),
-        #                         lr=0.0001,
-        #                         weight_decay=0.001)
+        # self.optimizer = torch.optim.SGD(net.parameters(), lr=0.0001, momentum=0.98, weight_decay=0.001)
+        # Adam optimiser
+        self.optimizer = torch.optim.Adam(net.parameters(), lr=0.0001, weight_decay=0.001)
         
         # Choose to train on CPU or GPU
         if on_gpu and torch.cuda.is_available():
@@ -977,7 +976,7 @@ class RecogModelTrainer:
 
     # Training main
     # def train(self, net, training_loader, val_loader, config):
-    def train(self, net, segmentation, training_loader, config):
+    def train(self, net, segmentation, training_loader, config, num_feat=5):
         """
         Train the model on a particular dataset.
         """
@@ -988,8 +987,8 @@ class RecogModelTrainer:
 
         if config.saving:
             # Training log file
-            with open(join(config.saving_path, 'training.txt'), "w") as file:
-                file.write('epochs steps out_loss offset_loss train_accuracy time\n')
+            # with open(join(config.saving_path, 'training.txt'), "w") as file:
+            #     file.write('epochs steps out_loss offset_loss train_accuracy time\n')
 
             # Killing file (simply delete this file when you want to stop the training)
             PID_file = join(config.saving_path, 'running_PID.txt')
@@ -1093,7 +1092,7 @@ class RecogModelTrainer:
                         # for layer in range(5):
                         #     print(val[layer].size())
                         # print(val) # on cuda:0
-                        descrip = net(val)
+                        descrip = net(val, num_feat)
                         # print('descriptor: ', descrip.size())
                         # print(descrip)
                         vlad_desp.append(descrip)
@@ -1134,7 +1133,7 @@ class RecogModelTrainer:
                 # Log file
                 if config.saving:
                     with open(join(config.saving_path, 'training.txt'), "a") as file:
-                        message = 'e{:03d}-i{:03d}: L={:.3f}, t_batch={:.3f}, t_feat={:.3f}, t_vlad={:.3f}, t_acc={:.3f}\n'
+                        message = 'e{:03d}-i{:03d}: L={:.3f} t_batch={:.3f} t_feat={:.3f} t_vlad={:.3f} t_acc={:.3f}\n'
                         file.write(message.format(self.epoch,
                                                   self.step,
                                                   loss.item(),

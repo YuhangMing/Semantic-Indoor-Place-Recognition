@@ -79,9 +79,11 @@ class ModelVisualizer:
         ##########################
 
         checkpoint = torch.load(chkp_path)
+        print(checkpoint.keys())
 
         new_dict = {}
         for k, v in checkpoint['model_state_dict'].items():
+            # print(k)
             if 'blocs' in k:
                 k = k.replace('blocs', 'blocks')
             new_dict[k] = v
@@ -109,7 +111,8 @@ class ModelVisualizer:
         fmt_str = '  {:}{:2d} > KPConv(r={:.3f}, Din={:d}, Dout={:d}){:}'
         deform_convs = []
         for m in net.modules():
-            if isinstance(m, KPConv) and m.deformable:
+            # if isinstance(m, KPConv) and m.deformable:
+            if isinstance(m, KPConv):
                 if len(deform_convs) == deform_idx:
                     color = bcolors.OKGREEN
                 else:
@@ -130,10 +133,36 @@ class ModelVisualizer:
         mean_dt = np.zeros(1)
         count = 0
 
+        print(config.max_epoch)
+        print(config.in_radius)
+
         # Start training loop
         for epoch in range(config.max_epoch):
 
             for batch in loader:
+
+
+
+                # print(batch.frame_inds)
+                if batch.frame_inds[0][1] != 14 and batch.frame_inds[0][1] != 15:
+                    continue
+
+                # for layer in range(5):
+                # #     print(batch.points[layer].shape)
+                #     print(batch.neighbors[layer].shape)
+                #     print(batch.neighbors[layer][0, :])
+                #     print(batch.pools[layer].shape)
+                #     print(batch.upsamples[layer].shape)
+                #     print(batch.lengths[layer])
+                # print(batch.features)
+                # print(batch.labels)
+                # print(batch.scales)
+                # print(batch.rots)
+                # print(batch.frame_inds)
+                # print(batch.frame_centers)
+                # # print(batch.reproj_inds)
+                # # print(batch.reporj_masks)
+                # # print(batch.val_labels)
 
                 ##################
                 # Processing batch
@@ -149,7 +178,10 @@ class ModelVisualizer:
                 # Forward pass
                 outputs = net(batch, config)
                 original_KP = deform_convs[deform_idx].kernel_points.cpu().detach().numpy()
-                stacked_deformed_KP = deform_convs[deform_idx].deformed_KP.cpu().detach().numpy()
+                if deform_convs[deform_idx].deformable:
+                    stacked_deformed_KP = deform_convs[deform_idx].deformed_KP.cpu().detach().numpy()
+                else:
+                    stacked_deformed_KP = deform_convs[deform_idx].kernel_points.cpu().detach().numpy()
                 count += batch.lengths[0].shape[0]
 
                 if 'cuda' in self.device.type:
@@ -158,6 +190,7 @@ class ModelVisualizer:
                 # Find layer
                 l = None
                 for i, p in enumerate(batch.points):
+                    print(p.shape, stacked_deformed_KP.shape, original_KP.shape)
                     if p.shape[0] == stacked_deformed_KP.shape[0]:
                         l = i
 
@@ -170,8 +203,10 @@ class ModelVisualizer:
                 points = []
                 lookuptrees = []
                 i0 = 0
-                for b_i, length in enumerate(batch.lengths[0]):
-                    in_points.append(batch.points[0][i0:i0 + length].cpu().detach().numpy())
+                # l=1
+                print('l=', l)
+                for b_i, length in enumerate(batch.lengths[l]):
+                    in_points.append(batch.points[l][i0:i0 + length].cpu().detach().numpy())
                     if batch.features.shape[1] == 4:
                         in_colors.append(batch.features[i0:i0 + length, 1:].cpu().detach().numpy())
                     else:

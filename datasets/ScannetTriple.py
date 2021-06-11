@@ -28,6 +28,8 @@ from matplotlib.pyplot import subplot_tool
 import numpy as np
 import pickle
 import json
+
+from numpy.lib.shape_base import _hvdsplit_dispatcher
 import torch
 import math
 # import yaml
@@ -61,7 +63,7 @@ import open3d as o3d
 class ScannetTripleDataset(PointCloudDataset):
     """Class to handle Scannet dataset for Triple segmentation."""
 
-    def __init__(self, config, set='training', balance_classes=True):
+    def __init__(self, config, set='training', balance_classes=True, kf_step=30):
         PointCloudDataset.__init__(self, 'ScannetTriple')
 
         ##########################
@@ -69,7 +71,7 @@ class ScannetTripleDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '/media/yohann/My Passport/datasets/ScanNet'
+        self.path = '/media/yohann/Datasets/datasets/ScanNet'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
 
         # Type of task conducted on this dataset
@@ -92,10 +94,9 @@ class ScannetTripleDataset(PointCloudDataset):
         elif self.set == 'test':
             scene_file_name = join(data_split_path, 'scannetv2_test.txt')
             self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
-            # print((self.scenes))
-            self.scenes = [self.scenes[0]]
+            self.scenes = self.scenes[:11]
+            # self.scenes = [self.scenes[0]]  # only test one scene
             print((self.scenes))
-            # self.scenes = [np.loadtxt(scene_file_name, dtype=np.str)]   # Single test file
         else:
             raise ValueError('Unsupport set type')
 
@@ -190,7 +191,19 @@ class ScannetTripleDataset(PointCloudDataset):
         self.class_proportions = None
         self.val_confs = []     # for validation
 
+        # Choose batch_num in_R and max_in_p depending on validation or training
+        if self.set == 'training':
+            self.batch_num = config.batch_num
+            self.max_in_p = config.max_in_points
+            self.in_R = config.in_radius
+        else:
+            # Loaded from training parameters
+            self.batch_num = config.val_batch_num
+            self.max_in_p = config.max_val_points
+            self.in_R = config.val_radius
+
         # create sub cloud from the HD mesh w.r.t. cameras
+        self.kf_step = kf_step
         self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
         self.prepare_point_cloud()
 
@@ -215,17 +228,6 @@ class ScannetTripleDataset(PointCloudDataset):
         # If true, the same amount of frames is picked per class
         # SET FALSE HERE
         self.balance_classes = balance_classes
-        
-        # Choose batch_num in_R and max_in_p depending on validation or training
-        if self.set == 'training':
-            self.batch_num = config.batch_num
-            self.max_in_p = config.max_in_points
-            self.in_R = config.in_radius
-        else:
-            # Loaded from training parameters
-            self.batch_num = config.val_batch_num
-            self.max_in_p = config.max_val_points
-            self.in_R = config.val_radius
 
         # shared epoch indices and classes (in case we want class balanced sampler)
         if set == 'training':
@@ -380,60 +382,82 @@ class ScannetTripleDataset(PointCloudDataset):
                 current_file = self.files[s_ind][f_ind]
                 # print('\nLoading: ', current_file)
 
-                data = read_ply(current_file)
-                points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
-                if points.shape[0] < 2:
+                # data = read_ply(current_file)
+                # points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
+                # if points.shape[0] < 2:
+                #     raise ValueError("Empty Polygan Mesh !!!!")
+                # # print(' -', current_file)
+                # colors = np.vstack((data['red'], data['green'], data['blue'])).T
+                # labels = data['class']  # zeros for test set
+                # # Get center of the first frame in camera coordinates
+                # p0 = np.mean(points, axis=0)      # mean in column direction
+                # # pose0 = self.poses[s_ind][f_ind]
+                # # p0 = np.dot(pose0[:3, :3], p_origin) + pose0[:3, 3]
+                # # p0 = np.squeeze(p0)
+                # # print("\nOriginal Cloud Info: ")
+                # # print('points:', points.shape, type(points[0,0]))
+                # # print('colors:', colors.shape, type(colors[0,0]))
+                # # print('labels:', labels.shape, type(labels[0]))
+                # # print('center:', p0.shape,     type(p0[0]))
+                # #### ONLY used for segmentation test.
+                # #### !!!! DONT NEED THESE FOR VLAD TEST //- Yohann
+                # o_pts = None
+                # o_labels = None
+                # # # backup the original point for validation
+                # # if self.set in ['validation', 'test']:
+                # #     o_pts = points.astype(np.float32)
+                # #     o_labels = labels.astype(np.int32)
+                # # else:
+                # #     o_pts = None
+                # #     o_labels = None
+                # ## Every frame point cloud is process only once 
+                # ## using a sphere with in_radius around the center of the input point cloud 
+                # # Eliminate points further than config.in_radius
+                # mask = np.sum(np.square(points - p0), axis=1) < self.in_R ** 2
+                # mask_inds = np.where(mask)[0].astype(np.int32)  # get row index of Trues or 1s
+                # points = points[mask_inds, :]
+                # colors = colors[mask_inds, :]
+                # labels = labels[mask_inds]
+                # # print("\nInliers Info: ")
+                # # print('points:', points.shape, type(points[0,0]))
+                # # print('colors:', colors.shape, type(colors[0,0]))
+                # # print('labels:', labels.shape, type(labels[0]))
+                # # print('center:', p0.shape,     type(p0[0]))
+                # # Subsample merged frames
+                # sub_pts, sub_rgb, sub_lbls = grid_subsampling(points.astype(np.float32),
+                #                                             features=colors.astype(np.float32),
+                #                                             labels=labels.astype(np.int32),
+                #                                             sampleDl=self.config.first_subsampling_dl)
+                # # print("\nSubsampled Cloud Info: ")
+                # # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
+                # # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
+                # # print('labels:', sub_lbls.shape, type(sub_lbls[0]))
+                # # print('center:', p0.shape,       type(p0[0]))
+
+                o_pts = None
+                o_labels = None
+
+                subpcd_file = current_file[:-4]+'_sub.ply'
+                data = read_ply(subpcd_file)
+                sub_pts = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T # Nx3
+                # sub_pts = sub_pts.astype(np.float32)
+                if sub_pts.shape[0] < 2:
                     raise ValueError("Empty Polygan Mesh !!!!")
-                
                 # print(' -', current_file)
-                colors = np.vstack((data['red'], data['green'], data['blue'])).T
-                labels = data['class']  # zeros for test set
+                sub_rgb = np.vstack((data['red'], data['green'], data['blue'])).astype(np.float32).T
+                # sub_rgb = sub_rgb.astype(np.float32)
+                sub_lbls = data['class'].astype(np.int32)  # zeros for test set
                 # Get center of the first frame in camera coordinates
-                p0 = np.mean(points, axis=0)      # mean in column direction
-                # pose0 = self.poses[s_ind][f_ind]
-                # p0 = np.dot(pose0[:3, :3], p_origin) + pose0[:3, 3]
-                # p0 = np.squeeze(p0)
-
-                # print("\nOriginal Cloud Info: ")
-                # print('points:', points.shape, type(points[0,0]))
-                # print('colors:', colors.shape, type(colors[0,0]))
-                # print('labels:', labels.shape, type(labels[0]))
-                # print('center:', p0.shape,     type(p0[0]))
-                
-                # backup the original point for validation
-                if self.set in ['validation', 'test']:
-                    o_pts = points.astype(np.float32)
-                    o_labels = labels.astype(np.int32)
-                else:
-                    o_pts = None
-                    o_labels = None
-
-                ## Every frame point cloud is process only once 
-                ## using a sphere with in_radius around the center of the input point cloud 
-                # Eliminate points further than config.in_radius
-                mask = np.sum(np.square(points - p0), axis=1) < self.in_R ** 2
-                mask_inds = np.where(mask)[0].astype(np.int32)  # get row index of Trues or 1s
-                points = points[mask_inds, :]
-                colors = colors[mask_inds, :]
-                labels = labels[mask_inds]
-
-                # print("\nInliers Info: ")
-                # print('points:', points.shape, type(points[0,0]))
-                # print('colors:', colors.shape, type(colors[0,0]))
-                # print('labels:', labels.shape, type(labels[0]))
-                # print('center:', p0.shape,     type(p0[0]))
-
-                # Subsample merged frames
-                sub_pts, sub_rgb, sub_lbls = grid_subsampling(points.astype(np.float32),
-                                                            features=colors.astype(np.float32),
-                                                            labels=labels.astype(np.int32),
-                                                            sampleDl=self.config.first_subsampling_dl)
-                
+                p0 = np.mean(sub_pts, axis=0)
+                # Convert p0 to world coordinates
+                # in case of Matrix x Vector, np.dot = np.matmul
+                crnt_pose = self.poses[s_ind][f_ind]
+                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
                 # print("\nSubsampled Cloud Info: ")
                 # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
                 # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
                 # print('labels:', sub_lbls.shape, type(sub_lbls[0]))
-                # print('center:', p0.shape,       type(p0[0]))
+                # print('center:', p0.shape, type(p0[0]), p0)
 
                 # rescale float color and squeeze label
                 ##  ?? some line missing here?
@@ -453,24 +477,25 @@ class ScannetTripleDataset(PointCloudDataset):
                     sub_lbls = sub_lbls[input_inds]
                     n = input_inds.shape[0]
 
-                # Before augmenting, compute reprojection inds (only for validation and test)
-                if self.set in ['validation', 'test']:
-                    # get val_points that are in range
-                    radiuses = np.sum(np.square(o_pts - p0), axis=1)
-                    reproj_mask = radiuses < (0.99 * self.in_R) ** 2
-                    
-                    #### !!!! DONT NEED THIS KDTREE FOR VLAD TEST //- Yohann
-                    proj_inds = np.zeros((0,))
-                    # # Project predictions on the frame points
-                    # search_tree = KDTree(sub_pts, leaf_size=10)
-                    # proj_inds = search_tree.query(o_pts[reproj_mask, :], return_distance=False)
-                    # proj_inds = np.squeeze(proj_inds).astype(np.int32)
-                else:
-                    proj_inds = np.zeros((0,))
-                    reproj_mask = np.zeros((0,))
-                
+                #### ONLY used for segmentation test.
+                #### !!!! DONT NEED THESE FOR VLAD TEST //- Yohann
+                proj_inds = np.zeros((0,))
+                reproj_mask = np.zeros((0,))
+                # # Before augmenting, compute reprojection inds (only for validation and test)
+                # if self.set in ['validation', 'test']:  
+                #     # get val_points that are in range
+                #     radiuses = np.sum(np.square(o_pts - p0), axis=1)
+                #     reproj_mask = radiuses < (0.99 * self.in_R) ** 2
+                #     # Project predictions on the frame points
+                #     search_tree = KDTree(sub_pts, leaf_size=10)
+                #     proj_inds = search_tree.query(o_pts[reproj_mask, :], return_distance=False)
+                #     proj_inds = np.squeeze(proj_inds).astype(np.int32)
+                # else:
+                #     proj_inds = np.zeros((0,))
+                #     reproj_mask = np.zeros((0,))
+
                 ## sub points in camera coordinate system
-                ## no need for further augmentation
+                ## AUGMENTATION DISABLED FOR NOW
                 # # Data augmentation
                 # in_pts, scale, R = self.augmentation_transform(in_pts)
                 scale = np.ones(3)
@@ -488,6 +513,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 p0_list += [p0]
                 s_list += [scale]
                 R_list += [R]
+                # don't need following three for VLAD
                 r_inds_list += [proj_inds]
                 r_mask_list += [reproj_mask]
                 val_labels_list += [o_labels]
@@ -531,7 +557,7 @@ class ScannetTripleDataset(PointCloudDataset):
         else: 
             raise ValueError('Only accepted input dimensions are 4 (without XYZ)')
         # print('features:', stacked_features.shape,  type(stacked_features[0,0]))
-        
+
 
         #######################
         # Create network inputs
@@ -564,27 +590,17 @@ class ScannetTripleDataset(PointCloudDataset):
         depth frame
         """
 
-        ###########
-        # Get Label
-        ###########
-        # Mapping from annot to NYU labels ID
-        label_files = join(self.path, 'scannetv2-labels.combined.tsv')
-        with open(label_files, 'r') as f:
-            lines = f.readlines()
-            names1 = [line.split('\t')[1] for line in lines[1:]]
-            IDs = [int(line.split('\t')[4]) for line in lines[1:]]
-            annot_to_nyuID = {n: id for n, id in zip(names1, IDs)}
-
         if not exists(self.input_pcd_path):
             makedirs(self.input_pcd_path)
         
+        print('current kf step =', self.kf_step)
         for i, scene in enumerate(self.scenes):
             ###############
             # Sequence data
             ###############
 
             scene_folder = join(self.path, 'scans', scene)
-            
+
             # get num of frames and intrinsics
             sceneNFrames, sceneK = self.parse_scene_info(join(scene_folder, scene+'.txt'))
 
@@ -599,48 +615,14 @@ class ScannetTripleDataset(PointCloudDataset):
             if not exists(scene_pcd_path):
                 # print('  Load reconstructed mesh and annotate...')
                 makedirs(scene_pcd_path)
-                
-                ## TEMP: Skip loading HD mesh if dir exists
-                ## Find better ways to skip loading if this scene is already processed
 
                 # get the high definition point cloud
-                hd_pcd = o3d.io.read_point_cloud(join(scene_folder, scene + '_vh_clean.ply'))
-                ## In o3d.geometry.PointCloud
-                ## colors:  float64 array of shape (num_points, 3), range [0, 1], use numpy.asarray() to access data
-                ## normals: float64 array of shape (num_points, 3), use numpy.asarray() to access data
-                ## points:  float64 array of shape (num_points, 3), use numpy.asarray() to access data
+                hd_pcd, hd_pcd_labeled = self.load_hd_pcd(scene_folder, scene)
+                b_PCD_Loaded = True
+            else:
+                b_PCD_Loaded = False
 
-                # hd_pts = np.asarray(hd_pcd.points)
-                hd_rgb = np.asarray(hd_pcd.colors)
-
-                # assign NYU2 labels to the hd_pcd
-                hd_labels = np.zeros(hd_rgb.shape, dtype=np.float64)
-                if self.set in ['training', 'validation']:
-                    # get objects segmentations
-                    # a dictionary of 'params', 'sceneId', 'segIndices'
-                    with open(join(scene_folder, scene + '_vh_clean.segs.json'), 'r') as f:
-                        segmentations = json.load(f)
-                    segIndices = np.array(segmentations['segIndices'])
-                    # get objects classes
-                    # a dictionary of 'sceneId', 'appId', 'segGroups', 'segmentsFile'.
-                    # segGroup is a list of dictionaries, each dict contains 'id', 'objId', 'segments', 'label', 
-                    # where 'segments' is a list of indices of the over-segments, and 'label' is the object label
-                    with open(join(scene_folder, scene + '_vh_clean.aggregation.json'), 'r') as f:
-                        aggregation = json.load(f)
-                    # loop on object to classify points
-                    for segGroup in aggregation['segGroups']:
-                        c_name = segGroup['label']
-                        if c_name in names1:
-                            nyuID = annot_to_nyuID[c_name]
-                            if nyuID in self.label_values:
-                                for segment in segGroup['segments']:
-                                    # stored as colors in the o3d.PointCloud
-                                    hd_labels[segIndices == segment, :] = np.array([nyuID, nyuID, nyuID])/255.
-                hd_pcd_labeled = o3d.geometry.PointCloud()
-                hd_pcd_labeled.points = hd_pcd.points
-                hd_pcd_labeled.colors = o3d.utility.Vector3dVector(hd_labels)
-            
-            # generate point cloud every 100 frames
+            # generate point cloud every kf_step frames
             # change to better selection with change in motions
             intrinsics = o3d.camera.PinholeCameraIntrinsic(
                 int(self.intrinsics[-1][1]), int(self.intrinsics[-1][0]), self.intrinsics[-1][2], 
@@ -650,8 +632,10 @@ class ScannetTripleDataset(PointCloudDataset):
             scene_poses = []
             scene_fids = []
             scene_centers = []
-            for j in range(0, self.nframes[-1], 100):
+            for j in range(0, self.nframes[-1], self.kf_step):
                 frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
+                # print(frame_pcd_file)
+                frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
                 pose = np.loadtxt(join(scene_folder, 'pose', str(j)+'.txt'))
                 # check if pose is lost
                 chk_val = np.sum(pose)
@@ -667,20 +651,28 @@ class ScannetTripleDataset(PointCloudDataset):
                 scene_fids.append(j)
 
                 # store small point clouds and centers
-                if exists(frame_pcd_file):
+                if exists(frame_pcd_file) and exists(frame_subpcd_file):
                     if self.set in ['training', 'validation']:
-                        data = read_ply(frame_pcd_file)
+                        data = read_ply(frame_subpcd_file)
                         points = np.vstack((data['x'], data['y'], data['z'])).T
                         center = np.mean(points, axis=0)
+                        # get center in world coordinates
                         scene_centers.append(np.dot(Rot, center)+trans)
 
-                else:    
+                else:
                     # get current point cloud from depth image
                     depth = o3d.io.read_image(join(scene_folder, 'depth', str(j)+'.png'))
                     depth_pcd = o3d.geometry.PointCloud.create_from_depth_image(depth, intrinsics)
-                    
-                    # get bounding box from current depth frame and crop the original pointcloud
+
+                    # get bounding box from current depth frame
                     bbox_aligned = depth_pcd.get_axis_aligned_bounding_box()
+
+                    # reload hd pcd if new sub pcd needs to be generated
+                    if not b_PCD_Loaded:
+                        hd_pcd, hd_pcd_labeled = self.load_hd_pcd(scene_folder, scene)
+                        b_PCD_Loaded = True
+
+                    # crop the original pointcloud
                     cam_pcd = hd_pcd.transform(np.linalg.inv(pose)).crop(bbox_aligned)
                     cam_pcd_labeled = hd_pcd_labeled.transform(np.linalg.inv(pose)).crop(bbox_aligned)
 
@@ -704,27 +696,65 @@ class ScannetTripleDataset(PointCloudDataset):
                     cam_rgb = cam_rgb.astype(np.uint8)
                     cam_label = np.asarray(cam_pcd_labeled.colors)*255.
                     cam_label = cam_label[:, 0].astype(np.int32)
-                    
-                    # print('    frame ', j)
+                    # Get center of the first frame in camera coordinates
+                    p0 = np.mean(cam_pts, axis=0)      # mean in column direction
+                    # print('\nFrame ', j)
+                    # print(frame_pcd_file) 
+                    # print(frame_subpcd_file)
                     # print(pose)
-                    # print('    ', frame_pcd_file)
-                    # print('    ', cam_pts.shape, cam_rgb.shape, cam_label.shape)
-                    # print('    ', type(cam_pts[0,0]), type(cam_rgb[0,0]), type(cam_label[0]))
-                    # print('    ', np.min(cam_rgb), np.max(cam_rgb))
+                    # print("Original Cloud Info: ")
+                    # print('points:', cam_pts.shape, type(cam_pts[0,0]))
+                    # print('colors:', cam_rgb.shape, type(cam_rgb[0,0]))
+                    # print('labels:', cam_label.shape, type(cam_label[0]))
+                    # print('center:', p0.shape, type(p0[0]), p0)
+
+                    ## Every frame point cloud is process only once 
+                    ## using a sphere with in_radius around the center of the input point cloud 
+                    # Eliminate points further than config.in_radius
+                    mask = np.sum(np.square(cam_pts - p0), axis=1) < self.in_R ** 2
+                    mask_inds = np.where(mask)[0].astype(np.int32)  # get row index of Trues or 1s
+                    cam_pts = cam_pts[mask_inds, :]
+                    cam_rgb = cam_rgb[mask_inds, :]
+                    cam_label = cam_label[mask_inds]
+                    # print("Inliers Info: ")
+                    # print('points:', cam_pts.shape, type(cam_pts[0,0]))
+                    # print('colors:', cam_rgb.shape, type(cam_rgb[0,0]))
+                    # print('labels:', cam_label.shape, type(cam_label[0]))
+                    # print('center:', p0.shape, type(p0[0]), p0)
 
                     # save as ply
                     write_ply(frame_pcd_file,
-                            (cam_pts, cam_rgb, cam_label), 
+                            (cam_pts.astype(np.float32), cam_rgb.astype(np.uint8), cam_label.astype(np.int32)), 
                             ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
-                    
+
+                    # voxel grid downsample the point cloud
+                    sub_pts, sub_rgb, sub_lbls = grid_subsampling(cam_pts.astype(np.float32),
+                                                                features=cam_rgb.astype(np.float32),
+                                                                labels=cam_label.astype(np.int32),
+                                                                sampleDl=self.config.first_subsampling_dl)
+                    # print("Subsampled Cloud Info: ")
+                    # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
+                    # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
+                    # print('labels:', sub_lbls.shape, type(sub_lbls[0,0]))
+                    # p0 = np.mean(sub_pts, axis=0)
+                    # print('center:', p0.shape, type(p0[0]), p0)
+
+                    # save as ply
+                    write_ply(frame_subpcd_file,
+                            (sub_pts.astype(np.float32), sub_rgb.astype(np.uint8), sub_lbls.astype(np.int32)), 
+                            ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
+
+
                     if self.set in ['training', 'validation']:
-                        center = np.mean(cam_pts, axis=0)
+                        # center = np.mean(cam_pts, axis=0)
+                        center = np.mean(sub_pts, axis=0)
+                        # get center in world coordinates
                         scene_centers.append(np.dot(Rot, center)+trans)
-                    
+
                     # transform back for next frame
                     hd_pcd.transform(pose)
                     hd_pcd_labeled.transform(pose)
-            
+
             self.files.append(scene_files)
             self.poses.append(scene_poses)
             self.fids.append(scene_fids)
@@ -749,10 +779,10 @@ class ScannetTripleDataset(PointCloudDataset):
                 self.posIds.append(all_posId)
                 self.negIds.append(all_negId)
                 self.centers.append(scene_centers)
-            
+
             # print(self.centers)
             # print(self.posIds)
-        
+
         if self.set in ['training', 'validation']:
             self.class_proportions = np.ones((self.num_classes,), dtype=np.int32)
 
@@ -761,10 +791,57 @@ class ScannetTripleDataset(PointCloudDataset):
         #     self.val_points = []
         #     self.val_labels = []
         #     self.val_confs = []
-
         #     for s_ind, seq_frames in enumerate(self.files):
         #         self.val_confs.append(np.zeros((len(seq_frames), self.num_classes, self.num_classes)))
     
+    def load_hd_pcd(self, scene_folder, scene):
+        # Mapping from annot to NYU labels ID
+        if self.set in ['training', 'validation']:
+            label_files = join(self.path, 'scannetv2-labels.combined.tsv')
+            with open(label_files, 'r') as f:
+                lines = f.readlines()
+                names1 = [line.split('\t')[1] for line in lines[1:]]
+                IDs = [int(line.split('\t')[4]) for line in lines[1:]]
+                annot_to_nyuID = {n: id for n, id in zip(names1, IDs)}
+
+        hd_pcd = o3d.io.read_point_cloud(join(scene_folder, scene + '_vh_clean.ply'))
+        ## In o3d.geometry.PointCloud
+        ## colors:  float64 array of shape (num_points, 3), range [0, 1], use numpy.asarray() to access data
+        ## normals: float64 array of shape (num_points, 3), use numpy.asarray() to access data
+        ## points:  float64 array of shape (num_points, 3), use numpy.asarray() to access data
+
+        # hd_pts = np.asarray(hd_pcd.points)
+        hd_rgb = np.asarray(hd_pcd.colors)
+
+        # assign NYU2 labels to the hd_pcd
+        hd_labels = np.zeros(hd_rgb.shape, dtype=np.float64)
+        if self.set in ['training', 'validation']:
+            # get objects segmentations
+            # a dictionary of 'params', 'sceneId', 'segIndices'
+            with open(join(scene_folder, scene + '_vh_clean.segs.json'), 'r') as f:
+                segmentations = json.load(f)
+            segIndices = np.array(segmentations['segIndices'])
+            # get objects classes
+            # a dictionary of 'sceneId', 'appId', 'segGroups', 'segmentsFile'.
+            # segGroup is a list of dictionaries, each dict contains 'id', 'objId', 'segments', 'label', 
+            # where 'segments' is a list of indices of the over-segments, and 'label' is the object label
+            with open(join(scene_folder, scene + '_vh_clean.aggregation.json'), 'r') as f:
+                aggregation = json.load(f)
+            # loop on object to classify points
+            for segGroup in aggregation['segGroups']:
+                c_name = segGroup['label']
+                if c_name in names1:
+                    nyuID = annot_to_nyuID[c_name]
+                    if nyuID in self.label_values:
+                        for segment in segGroup['segments']:
+                            # stored as colors in the o3d.PointCloud
+                            hd_labels[segIndices == segment, :] = np.array([nyuID, nyuID, nyuID])/255.
+        hd_pcd_labeled = o3d.geometry.PointCloud()
+        hd_pcd_labeled.points = hd_pcd.points
+        hd_pcd_labeled.colors = o3d.utility.Vector3dVector(hd_labels)
+
+        return hd_pcd, hd_pcd_labeled
+
     def parse_scene_info(self, filename):
         """ read information file with given filename
 
@@ -1087,7 +1164,7 @@ class ScannetTripleSampler(Sampler):
             redo = True
 
         if verbose:
-            print('\nPrevious calibration found:')
+            print('Previous calibration found:')
             print('Check batch limit dictionary')
             if key in batch_lim_dict:
                 color = bcolors.OKGREEN
@@ -1324,6 +1401,8 @@ class ScannetTripleCustomBatch:
     """
 
     def __init__(self, input_list):
+        # NOTE: points in camera coordinates
+        #       centers in world coordinates
 
         # print(len(input_list[0]))
         # return empty batch to inform no more point left

@@ -16,9 +16,12 @@
 #
 
 # Common libs
+import enum
+from multiprocessing import Value
 import os
 # import sys
 import signal
+import argparse
 import numpy as np
 import torch
 
@@ -41,11 +44,11 @@ from utils.config import Config
 from utils.trainer import RecogModelTrainer
 # from utils.tester import ModelTester
 
-# VLAD
+# VLAD test
 from sklearn.neighbors import KDTree
 
-# # Visualisation
-# import open3d as o3d
+# Visualisation
+import open3d as o3d
 # import matplotlib.pyplot as plt
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -59,9 +62,37 @@ from sklearn.neighbors import KDTree
 #   in terminal
 #
 
-bTRAIN = False
 
 if __name__ == '__main__':
+    """
+    Activate environment: 
+        conda acitvate graph
+    
+    Train with LAST 3 blocks of encoder features: 
+        python feature_embedding_test.py --train --feat_num 3
+    Train with ALL 5 blocks of encoder features: 
+        python feature_embedding_test.py --train --feat_num 5
+    
+    Test with LAST 3 blocks of encoder features: 
+        python feature_embedding_test.py --test --feat_num 3
+    Test with ALL 5 blocks of encoder features: 
+        python feature_embedding_test.py --test --feat_num 5
+    """
+
+    #####################
+    # PARSE CMD-LINE ARGS
+    #####################
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train', dest='bTRAIN', action='store_true', help='Set to train the VLAD layers')
+    parser.add_argument('--test', dest='bTRAIN', action='store_false', help='Set to test the VLAD layers')
+    parser.add_argument('--num_feat', type=int, default=5, help='How many block features to use [default: 5]')
+    parser.add_argument('--eval', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
+    parser.add_argument('--visualise', dest='bVISUAL', action='store_true', help='Set to visualise the VLAD results')
+    FLAGS=parser.parse_args()
+    print(FLAGS.bTRAIN)
+    print(FLAGS.num_feat)
+    print(FLAGS.bEVAL)
+    print(FLAGS.bVISUAL)
 
     ######################
     # LOAD THE PRE-TRAINED 
@@ -136,7 +167,8 @@ if __name__ == '__main__':
     print("SEGMENTATION model and training state restored with", epoch, "epoches trained.")
     print('Done in {:.1f}s\n'.format(time.time() - t))
 
-    if bTRAIN:
+    if FLAGS.bTRAIN:
+        print('\nTRAINING VLAD Layer...\n')
 
         ###########################
         # TRAIN RECOGNITION NETWORK
@@ -213,11 +245,12 @@ if __name__ == '__main__':
         print('\nStart training')
         print('**************')
         # TRAINING
-        trainer.train(reg_net, seg_net, train_loader, config)
+        trainer.train(reg_net, seg_net, train_loader, config, FLAGS.num_feat)
         print('Forcing exit now')
         os.kill(os.getpid(), signal.SIGINT)
 
     else:
+        print('\nTESTING VLAD Layer...\n')
 
         ##########################
         # TEST RECOGNITION NETWORK
@@ -226,15 +259,20 @@ if __name__ == '__main__':
         print('\nLoad pre-trained recognition VLAD')
         print('*********************************')
         t = time.time()
-        chosen_log = 'results/Recog_Log_2021-05-25_10-55-26'
+        if FLAGS.num_feat == 3:
+            chosen_log = 'results/Recog_Log_2021-05-26_09-28-44'    # Adam 0.0001, 3 feats, epoch 50
+        elif FLAGS.num_feat == 5:
+            chosen_log = 'results/Recog_Log_2021-05-26_11-51-58'    # Adam 0.0001, 5 feats, epoch 45
+        else:
+            raise ValueError('unsupported feature number')
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-        chkp_idx = None
-        print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
+        chkp_idx = 3
+        print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx, 'NUM_FEAT=', FLAGS.num_feat)
 
         # Find all checkpoints in the chosen training folder
         chkp_path = os.path.join(chosen_log, 'checkpoints')
         chkps = [f for f in os.listdir(chkp_path) if f[:4] == 'chkp']
-        print('Checkpoints found:', chkps)
+        print('Checkpoints found:', np.sort(chkps))
         # print(np.sort(chkps)) # sort string in alphbatic order
 
         # Find which snapshot to restore
@@ -251,7 +289,7 @@ if __name__ == '__main__':
         # # Change parameters for the TESTing here. 
         # config.batch_num = 1        # for cloud segmentation
         # config.val_batch_num = 1    # for SLAM segmentation
-        # config.validation_size = 50    # decide how many points will be covered in prediction -> how many forward passes
+        config.validation_size = 6000    # decide how many points will be covered in prediction -> how many forward passes
         # config.input_threads = 0
         config.print_current()
 
@@ -273,7 +311,7 @@ if __name__ == '__main__':
         print('****************')
         t = time.time()
         # new dataset for triplet input
-        test_dataset = ScannetTripleDataset(config, 'test', balance_classes=False)
+        test_dataset = ScannetTripleDataset(config, 'test', balance_classes=False, kf_step=15)
         test_sampler = ScannetTripleSampler(test_dataset)
 
         # Initialize the dataloader
@@ -287,42 +325,177 @@ if __name__ == '__main__':
         print('Calibed neighbor limit:', test_sampler.dataset.neighborhood_limits)
         print('Done in {:.1f}s\n'.format(time.time() - t))
 
+        db_path = '/media/yohann/Datasets/datasets/ScanNet/scans/input_pcd/database'
+        dist_thred = 0.7 # 0.7/1.0
+        ovlp_thred = 0.2
+        vlad_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_vlad_KDTree.txt')
+        pcd_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_point_clouds.txt')
+        bIdfId_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_file_id.txt')
+        bIdbId_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_batch_id.txt')
 
-        print('\nGenerate database')
-        print('*****************')
-        t = time.time()
-        # Get database
-        break_cnt = 0
-        map_database= []
-        ind_dict = {}
-        for i, batch in enumerate(test_loader):
-            # continue if empty input list is given
-            # caused by empty positive neighbors
-            if len(batch.points) == 0:
-                break_cnt +=1
-                continue
-            else:
-                break_cnt = 0
-            # stop fetch new batch if no more points left
-            if break_cnt > 4:
-                break
+        if not exists(vlad_file):
+            print('\nGenerate database')
+            print('*****************')
+            t = time.time()
+            # Get database
+            break_cnt = 0
+            database_vect = []
+            batchInd_fileId = []
+            batchInd_batchId = []
+            database_cntr = {}
+            database_pcds = {}
+            for i, batch in enumerate(test_loader):
+                # continue if empty input list is given
+                # caused by empty positive neighbors
+                if len(batch.points) == 0:
+                    break_cnt +=1
+                    continue
+                else:
+                    break_cnt = 0
+                # stop fetch new batch if no more points left
+                if break_cnt > 4:
+                    break
 
-            if i%2 == 0:
-                batch.to(device)
-                # get the VLAD descriptor
-                # list of interim vectors
-                feat = seg_net.inter_encoder_features(batch)
-                vlad = reg_net(feat)
-                # print(type(vlad.cpu().detach().numpy()))
-                # print(type(vlad.cpu().detach().numpy()[0]))
-                # print(vlad.cpu().detach().numpy().shape)
-                map_database.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
-                ind_dict[int(i/2)] = i
-            
-        map_database = np.array(map_database)
-        search_tree = KDTree(map_database, leaf_size=4)
-        # print(map_database.shape)
+                tmp_cntr = batch.frame_centers.cpu().detach().numpy()[0]    # np.array, (3,)
+                tmp_fmid = batch.frame_inds.cpu().detach().numpy()[0]       # list, [scene_id, frame_id]
+                tmp_pts = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
+                tmp_pose = test_loader.dataset.poses[tmp_fmid[0]][tmp_fmid[1]]
+                tmp_pts = (tmp_pose[:3, :3] @ tmp_pts.T).T + tmp_pose[:3, 3]
+                # print(tmp_fmid, tmp_cntr)
+                if tmp_fmid[0] not in database_cntr.keys():
+                    print('ADDING NEW PCD TO DB:', tmp_fmid)
+                    batch.to(device)
+                    # get the VLAD descriptor
+                    feat = seg_net.inter_encoder_features(batch)
+                    vlad = reg_net(feat, num_feat=FLAGS.num_feat)
+                    # store vlad vec, frm_cntr, and indices
+                    database_vect.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
+                    database_cntr[tmp_fmid[0]] = [tmp_cntr]
+                    database_pcds[tmp_fmid[0]] = [tmp_pts]
+                    batchInd_fileId.append(tmp_fmid)
+                    batchInd_batchId.append(i)
+                else:
+                    bAddToDB = True
+
+                    # loose check with distance between centroids
+                    # tt = time.time()
+                    for db_cntr in database_cntr[tmp_fmid[0]]:
+                        tmp_dist = np.linalg.norm(db_cntr - tmp_cntr)
+                        if tmp_dist < dist_thred * test_loader.dataset.in_R:
+                            # skip if not enough movement detected
+                            bAddToDB = False
+                            break
+                    # print('Centroid test done in {:.6f}s'.format(time.time() - tt))
+
+                    # double check with overlap
+                    if bAddToDB:
+                        # tt = time.time()
+                        nnTree = KDTree(tmp_pts)    # default leaf_size=40, memory assumption = n_samples/leaf_size
+                        for db_pts in database_pcds[tmp_fmid[0]]:
+                            nnDists, _ = nnTree.query(db_pts)
+                            overlap_num = np.sum(nnDists < 0.05)
+                            # print(nnDists.shape, overlap_num, np.mean(nnDists))
+                            rOQ = overlap_num/tmp_pts.shape[0]
+                            rOR = overlap_num/db_pts.shape[0]
+                            if rOQ > ovlp_thred or rOR > ovlp_thred:
+                                # skip if too much overlap with existing pcd
+                                bAddToDB = False
+                                break
+                        # print('NN test done in {:.6f}s'.format(time.time() - tt))
+
+                    if bAddToDB:
+                        print('ADDING NEW PCD TO DB:', tmp_fmid)
+                        batch.to(device)
+                        # get the VLAD descriptor
+                        feat = seg_net.inter_encoder_features(batch)
+                        vlad = reg_net(feat, num_feat=FLAGS.num_feat)
+                        # store vlad vec, frm_cntr, and indices
+                        database_vect.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
+                        database_cntr[tmp_fmid[0]].append(tmp_cntr)
+                        database_pcds[tmp_fmid[0]].append(tmp_pts)
+                        batchInd_fileId.append(tmp_fmid)
+                        batchInd_batchId.append(i)
+                # print('stored center number:', len(database_cntr[tmp_fmid[0]]))
+            database_vect = np.array(database_vect)
+            search_tree = KDTree(database_vect, leaf_size=4)
+            # print(batchInd_fileId)
+            # print(database_vect.shape)
+
+            # store the database
+            with open(vlad_file, "wb") as f:
+                pickle.dump(search_tree, f)
+            with open(pcd_file, "wb") as f:
+                pickle.dump(database_pcds, f)
+            with open(bIdfId_file, "wb") as f:
+                pickle.dump(batchInd_fileId, f)
+            with open(bIdbId_file, "wb") as f:
+                pickle.dump(batchInd_batchId, f)
+            print('VLAD Databased SAVED to Files:', join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_XXXX.txt'))
+
+        else:
+            # load the database
+            # store the database
+            with open(vlad_file, "rb") as f:
+                search_tree = pickle.load(f)
+            with open(pcd_file, "rb") as f:
+                database_pcds = pickle.load(f)
+            with open(bIdfId_file, "rb") as f:
+                batchInd_fileId = pickle.load(f)
+            with open(bIdbId_file, "rb") as f:
+                batchInd_batchId = pickle.load(f)
+            print('VLAD Databased LOADED from Files:', join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_XXXX.txt'))
+
         print('Done in {:.1f}s\n'.format(time.time() - t))
+
+        # ## Visualise database point clouds
+        # pre_sid = 0
+        # fid_cnt = 0
+        # # vis = o3d.visualization.Visualizer()
+        # # vis.create_window(window_name='database', width=960, height=540, left=360, top=0)    
+        # for sid, fid in batchInd_fileId:
+        #     # get the query point cloud
+        #     db_file = test_loader.dataset.files[sid][fid]
+        #     db_file = db_file[:-4]+'_sub.ply'
+        #     db_pose = test_loader.dataset.poses[sid][fid]
+        #     print('processing:', db_file)
+        #     print(db_pose)
+        #     db_pcd = o3d.io.read_point_cloud(db_file)
+
+        #     # vis = o3d.visualization.Visualizer()
+        #     # vis.create_window(window_name='database', width=960, height=540, left=360, top=0)
+        #     # db_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.3, max_nn=50))
+        #     # vis.add_geometry(db_pcd)
+        #     # vis.run()
+        #     # vis.destroy_window()
+
+        #     db_pcd.transform(db_pose)
+        #     trans = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0],
+        #             [0.0, 0.0, 1.0, -1.*fid_cnt], [0.0, 0.0, 0.0, 1.0]]
+        #     db_pcd.transform(trans)
+        #     # visualise query in the original color
+        #     # create visualisation window
+        #     if sid != pre_sid:
+        #         # hd_pcd_path = '/media/yohann/Datasets/datasets/ScanNet/scans'
+        #         # pre_file = test_loader.dataset.files[pre_sid][fid]
+        #         # scene = pre_file.split('/')[-2]
+        #         # hd_pcd = o3d.io.read_point_cloud(join(hd_pcd_path, scene, scene + '_vh_clean.ply'))
+        #         # vis.add_geometry(hd_pcd)
+        #         trans = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0],
+        #             [0.0, 0.0, 1.0, 1.*fid_cnt], [0.0, 0.0, 0.0, 1.0]]
+        #         db_pcd.transform(trans)
+        #         vis.run()
+        #         vis.destroy_window()
+        #         fid_cnt = 1
+        #         pre_sid = sid
+        #         vis = o3d.visualization.Visualizer()
+        #         vis.create_window(window_name='database', width=960, height=540, left=360, top=0)
+        #         vis.add_geometry(db_pcd)
+        #     else:
+        #         vis.add_geometry(db_pcd)
+        #         fid_cnt += 1
+        # vis.run()
+        # vis.destroy_window()
+
 
         print('\nStart test')
         print('**********')
@@ -330,6 +503,7 @@ if __name__ == '__main__':
         # loop again to test with KDTree NN
         break_cnt = 0
         test_pair = []
+        eval_results = []
         for i, batch in enumerate(test_loader):
             # continue if empty input list is given
             # caused by empty positive neighbors
@@ -341,197 +515,138 @@ if __name__ == '__main__':
             # stop fetch new batch if no more points left
             if break_cnt > 4:
                 break
-            
-            if i%2 != 0:
-                batch.to(device)
-                # get the VLAD descriptor
-                # list of interim vectors
-                feat = seg_net.inter_encoder_features(batch)
-                vlad = reg_net(feat).cpu().detach().numpy()     # ndarray of (1, 256)
-                dist, ind = search_tree.query(vlad)
-                print(i, ind, ind_dict[ind[0][0]], dist)
-                test_pair.append([i, ind_dict[ind[0][0]]])
 
+            # skip if it's already stored in database
+            # if i in batchInd_batchId or i%30 != 0:  # every 450 frame 
+            if i in batchInd_batchId:
+                continue
+        
+            print('processing pcd no.', i)
+            tt = time.time()
+            q_fmid = batch.frame_inds.cpu().detach().numpy()[0]     # list, [scene_id, frame_id]
+            # Get VLAD descriptor
+            batch.to(device)
+            feat = seg_net.inter_encoder_features(batch)
+            vlad = reg_net(feat, num_feat=FLAGS.num_feat).cpu().detach().numpy()     # ndarray of (1, 256)
+            # search for the closest match in DB
+            dist, ind = search_tree.query(vlad, k=3)
+            test_pair.append([q_fmid, 
+                [batchInd_fileId[ ind[0][0] ],
+                 batchInd_fileId[ ind[0][1] ],
+                 batchInd_fileId[ ind[0][2] ]]
+            ])
+
+            if FLAGS.bEVAL:
+                q_cent = batch.frame_centers.cpu().detach().numpy()[0]    # np.array, (3,)
+                q_pcd_np = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
+                q_pose = test_loader.dataset.poses[q_fmid[0]][q_fmid[1]]
+                q_pcd_np = (q_pose[:3, :3] @ q_pcd_np.T).T + q_pose[:3, 3]
+                queryKDT = KDTree(q_pcd_np)
+
+                one_result = []
+                for k, id in enumerate(ind[0]):
+                    r_fmid = batchInd_fileId[id]
+                    if r_fmid[0] != q_fmid[0]:
+                        one_result.append(0)
+                        continue
+
+                    # get k-th retrieved point cloud
+                    retri_file = test_loader.dataset.files[r_fmid[0]][r_fmid[1]]
+                    retri_file = retri_file[:-4]+'_sub.ply'
+                    print(k, retri_file)
+                    r_pcd = o3d.io.read_point_cloud(retri_file)
+
+                    r_pose = test_loader.dataset.poses[r_fmid[0]][r_fmid[1]]
+                    r_pcd.transform(r_pose)
+                    r_pcd_np = np.asarray(r_pcd.points)
+
+                    # compute distance between centroids
+                    r_cent = np.mean(r_pcd_np, axis=0)
+                    dist = np.linalg.norm(q_cent - r_cent)
+                    if dist < dist_thred * test_loader.dataset.in_R:
+                        for fill in range(k, 3):
+                            one_result.append(1)
+                        break
+                    else:
+                        # compute overlap
+                        qrDists, _ = queryKDT.query(r_pcd_np)
+                        overlap_num = np.sum(qrDists < 0.05)
+                        # print(nnDists.shape, overlap_num, np.mean(nnDists))
+                        rOQ = overlap_num/q_pcd_np.shape[0]
+                        rOR = overlap_num/r_pcd_np.shape[0]
+                        
+                        if rOQ > ovlp_thred or rOR > ovlp_thred:
+                            for fill in range(k, 3):
+                                one_result.append(1)
+                            break
+                        else:
+                            one_result.append(0)
+                eval_results.append(np.array(one_result))
+
+            print('current pcd finished in {:.4f}s\n'.format(time.time() - tt))
             # ind = test_loader.dataset.epoch_inds[i]
             # s_ind, f_ind = test_loader.dataset.all_inds[ind]
             # current_file = test_loader.dataset.files[s_ind][f_ind]
             # print(i, ind, s_ind, f_ind, current_file)
-        
         print('Done in {:.1f}s\n'.format(time.time() - t))
+        if FLAGS.bEVAL:
+            eval_results = np.array(eval_results)
+            num_test = eval_results.shape[0]
+            accu_results = np.sum(eval_results, axis=0)
+            print('Evaluation Results',
+                  '\n    with', len(batchInd_fileId), 'stored pcd', num_test, 'test pcd',
+                  '\n    with distance threshold', dist_thred*test_loader.dataset.in_R, 
+                        'and overlap threshold', ovlp_thred)
+            for k, accum1 in enumerate(accu_results):
+                print(' - Top', k+1, 'precision =', accum1/num_test)
 
 
-        print('\nVisualisation')
-        print('*************')
-        ## Add visualisation here
+        if FLAGS.bVISUAL:
+            print('\nVisualisation')
+            print('*************')
+            retri_colors = [[0, 0.651, 0.929],   # blue
+                            [0, 0.8, 0],         # green
+                            [1.0, 0.4, 0.4],     # red
+                            [1, 0.706, 0]        # yellow
+                            ]
+            for query, retrivs in test_pair:
+                # get the query point cloud
+                query_file = test_loader.dataset.files[query[0]][query[1]]
+                query_file = query_file[:-4]+'_sub.ply'
+                # q_pose = test_loader.dataset.poses[query[0]][query[1]]
+                print('processing:', query_file)
+                print('query/retrivs:', query, retrivs)
+
+                q_pcd = o3d.io.read_point_cloud(query_file)
+                # q_pcd.transform(q_pose)
+                # q_pcd.paint_uniform_color([1, 0.706, 0])        # yellow
+                q_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.3, max_nn=50))
+
+                # visualise query in the original color
+                # create visualisation window
+                vis = o3d.visualization.Visualizer()
+                vis.create_window(window_name='Query & Retrieval', width=960, height=960, left=360, top=0)
+                vis.add_geometry(q_pcd)
+                
+                for k, retri in enumerate(retrivs):
+                    # get k-th retrieved point cloud
+                    retri_file = test_loader.dataset.files[retri[0]][retri[1]]
+                    retri_file = retri_file[:-4]+'_sub.ply'
+                    # r_pose = test_loader.dataset.poses[retri[0]][retri[1]]
+
+                    r_pcd = o3d.io.read_point_cloud(retri_file)
+                    trans = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0],
+                            [0.0, 0.0, 1.0, 4.*(k+1)], [0.0, 0.0, 0.0, 1.0]]
+
+                    # r_pcd.transform(r_pose)
+                    r_pcd.transform(trans)
+                    # r_pcd.paint_uniform_color(retri_colors[k])
+                    r_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.3, max_nn=50))
+                    vis.add_geometry(r_pcd)
+
+                vis.run()
+                vis.destroy_window()
 
 
-    #################################################################################
-    # ^ train/test recog net
-    #
-    #################################################################################
-    #
-    # V test segmentation
-    #################################################################################
 
-
-    # # tester.intermedian_features(seg_net, train_loader, config)
-
-    # # Initiate dataset
-    # # Use the provided dataset and loader, for easy batch generation
-    # #### S3DIS
-    # # test_dataset = S3DISDataset(config, 'visualise', use_potentials=True)
-    # # test_sampler = S3DISSampler(test_dataset)
-    # # collate_fn = S3DISCollate
-    # #### 7Scenes
-    # # test_dataset = SinglePlyDataset(config, 'visualise', use_potentials=True)
-    # # test_sampler = SinglePlySampler(test_dataset)
-    # # collate_fn = SinglePlyCollate
-    # #### Scannet
-    # # # test_dataset = ScannetDataset(config, 'validation', use_potentials=True)
-    # # test_dataset = ScannetDataset(config, 'test', use_potentials=True)
-    # # test_sampler = ScannetSampler(test_dataset)
-    # # collate_fn = ScannetCollate
-    # #### ScannetSLAM
-    # test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
-    # test_sampler = ScannetSLAMSampler(test_dataset)
-    # collate_fn = ScannetSLAMCollate
     
-    # print(test_dataset.label_values)
-    # print(test_dataset.ignored_labels)
-    
-    # # Data loader
-    # test_loader = DataLoader(test_dataset,
-    #                          batch_size=1,
-    #                          sampler=test_sampler,
-    #                          collate_fn=collate_fn,
-    #                          num_workers=config.input_threads,
-    #                          pin_memory=True)
-
-    # # Calibrate samplers
-    # test_sampler.calibration(test_loader, verbose=True)
-    # print('Calibed batch limit:', test_sampler.dataset.batch_limit)
-    # print('Calibed neighbor limit:', test_sampler.dataset.neighborhood_limits)
-    
-    # print('\nModel Preparation')
-    # print('*****************')
-    # # load network architecture
-    # t1 = time.time()
-    # if config.dataset_task in ['cloud_segmentation', 'slam_segmentation']:
-    #     net = KPFCNN(config, test_dataset.label_values, test_dataset.ignored_labels)
-    # else:
-    #     raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)
-
-    # # Define a visualizer class
-    # tester = ModelTester(net, chkp_path=chosen_chkp)
-    # print('Done in {:.1f}s\n'.format(time.time() - t1))
-
-    # print('\nStart test')
-    # print('**********')
-    # # Perform prediction
-    # if config.dataset_task == 'cloud_segmentaion':
-    #     # tester.cloud_segmentation_test(net, test_loader, config, 0)
-    #     tester.segmentation_with_return(net, test_loader, config, 0)
-    # elif config.dataset_task == 'slam_segmentation':
-    #     tester.slam_segmentation_test(net, test_loader, config, 0)
-    # else:
-    #     raise ValueError('Unsupported dataset task: ' + config.dataset_task)
-    # # # Forward pass
-    # # outputs = net(batch, config)
-    # # inter_en_feat = net.inter_encoder_features(batch, config)
-
-    # # # print('\nTest with different blocks')
-    # # # print('**************************')
-    # # # # for child in net.children():
-    # # # #     print(child, '\n')
-    # # # # for mod in net.modules():
-    # # # #     print(mod, '\n')
-    # # # # get the encoder out    
-    # # # for name, module in net.named_children():
-    # # #     if 'encoder' in name:
-    # # #         encoder = module
-    # # # # print(encoder)
-    # # # for child in encoder.children():
-    # # #     print(child, '\n')
-
-    # # print('\nGet intermedian features')
-    # # print('************************')
-
-    # # tester.intermedian_features(net, test_loader, config)
-
-
-    #################################################################################
-    # # Visualisation
-    # print('\nVisualising Predictions')
-    # print('***********************\n')
-    # # fig = plt.figure()
-    # # ax = fig.add_subplot()
-    # # y_lim = test_dataset.num_classes *2
-    # # ax.axis([0, 4, 0, y_lim])
-    # # for i, label in enumerate(test_dataset.label_values):
-    # #     y = y_lim - (i*3+1)
-    # #     if y > 0:
-    # #         x = 0.5
-    # #     else:
-    # #         x = 2.5
-    # #         y = -y
-    # #     ax.plot([x], [y], '.', color=(test_dataset.label_to_colour[label][0]/255.0, 
-    # #                                 test_dataset.label_to_colour[label][1]/255.0, 
-    # #                                 test_dataset.label_to_colour[label][2]/255.0),  
-    # #             markersize=40) 
-    # #     ax.text(x+0.25, y-0.5, test_dataset.label_to_names[label], fontsize=15)
-    # # # plot color annotation
-    # # plt.show()
-
-    # # # S3DIS
-    # # rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
-    # #                                    test_dataset.train_path, 
-    # #                                    'Area_5', test_dataset.room_name + ".ply"))
-    # # pred = o3d.io.read_point_cloud(join('test', 
-    # #                                     config.saving_path.split('/')[-1], 
-    # #                                     'predictions',
-    # #                                     test_dataset.room_name+'_pred.ply'))
-    # # Scannet
-    # room_name = test_dataset.clouds[0]
-    # rgb = o3d.io.read_point_cloud(join(test_dataset.ply_path,
-    #                                    room_name,
-    #                                    room_name+'_vh_clean_2.ply'))
-    # pred = o3d.io.read_point_cloud(join('test', 
-    #                                     config.saving_path.split('/')[-1], 
-    #                                     'predictions',
-    #                                     room_name+'_pred.ply'))
-    # # # 7Scenes
-    # # room_name = test_dataset.clouds[0]
-    # # rgb = o3d.io.read_point_cloud(join(test_dataset.ply_path,
-    # #                                    room_name,
-    # #                                    'point_cloud_620_mesh.ply'))
-    # # pred = o3d.io.read_point_cloud(join('test', 
-    # #                                     config.saving_path.split('/')[-1], 
-    # #                                     'predictions',
-    # #                                     room_name+'_pred.ply'))
-
-    # ScannetSLAM
-    # pred_path = '/NNs/Semantic-Global-Localisation/test/Log_2021-05-13_14-38-15/predictions'
-    # rgb_path = '/media/yohann/My Passport/datasets/ScanNet/scans/input_pcd/scene0000_01/'
-    # for file_name in listdir(pred_path):
-
-
-    # vis1 = o3d.visualization.Visualizer()
-    # vis1.create_window(window_name='RGB', width=960, height=540, left=0, top=0)
-    # vis1.add_geometry(rgb)
-    # vis2 = o3d.visualization.Visualizer()
-    # vis2.create_window(window_name='prediction', width=960, height=540, left=0, top=0)
-    # vis2.add_geometry(pred)
-    # # visualise segmentation result with original color pc
-    # while True:
-    #     vis1.update_geometry(rgb)
-    #     if not vis1.poll_events():
-    #         break
-    #     vis1.update_renderer()
-
-    #     vis2.update_geometry(pred)
-    #     if not vis2.poll_events():
-    #         break
-    #     vis2.update_renderer()
-
-    # vis1.destroy_window()
-    # vis2.destroy_window()

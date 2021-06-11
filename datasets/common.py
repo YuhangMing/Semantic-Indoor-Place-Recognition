@@ -537,6 +537,7 @@ class PointCloudDataset(Dataset):
 
                 # Subsampled points
                 pool_p, pool_b = batch_grid_subsampling(stacked_points, stack_lengths, sampleDl=dl)
+                # pool_p, pool_b = batch_grid_subsampling(stacked_points, stack_lengths, sampleDl=dl, random_grid_orient=False)
 
                 # Radius of pooled neighbors
                 if 'deformable' in block:

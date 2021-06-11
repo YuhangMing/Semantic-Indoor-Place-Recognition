@@ -55,21 +55,58 @@ if __name__ == '__main__':
     ## plot loss ##
     steps = []
     loss = []
-    count = 0
-    with open('results/Recog_Log_2021-05-25_03-34-01/training.txt') as f:
+    count = 1
+    avg = 600
+    # with open('results/Recog_Log_2021-05-25_03-34-01/training.txt') as f:     # SGD 0.01, 5 features
+    with open('results/Recog_Log_2021-05-26_09-28-44/training.txt') as f:     # Adam 0.0001, 3 features
         lines = f.readlines()
+        tmp = 0
         for line in lines:
             line = line.rstrip().split(' ')
-            one_loss = float(line[1][5:])
-            # print(line, count, one_loss)
-            if one_loss > 2:
-                print(line[0], one_loss)
-            steps.append(count)
-            loss.append(one_loss)
+            epoch = int(line[0][1:4])
+            # one_loss = float(line[1][5:])
+            # one_loss = float(line[1][2:-1])
+            one_loss = float(line[1][2:])
+            tmp += one_loss
+            if count % avg ==0:
+                steps.append(count/avg)
+                loss.append(tmp/avg)
+                tmp = 0
             count += 1
-    x = np.array(steps)
+    x1 = np.array(steps)
     y = np.array(loss)
     print(np.max(y))
-    plt.plot(x, y)
+    # plt.plot(x1, y)
+    # plt.show()
+
+    steps = []
+    loss = []
+    count = 1
+    with open('results/Recog_Log_2021-05-26_11-51-58/training.txt') as f:     # Adam 0.0001, 5 features
+        lines = f.readlines()
+        tmp = 0
+        for line in lines:
+            line = line.rstrip().split(' ')
+            epoch = int(line[0][1:4])
+            one_loss = float(line[1][2:])
+            tmp += one_loss
+            if count % avg ==0:
+                steps.append(count/avg)
+                loss.append(tmp/avg)
+                tmp = 0
+            count += 1
+    
+    x2 = np.array(steps)
+    z = np.array(loss)
+    print(np.max(z))
+
+    up_bd = min(len(x1), len(x2))
+    plt.plot(x1[:up_bd], y[:up_bd], 'r', label='3 features')
+    plt.plot(x2[:up_bd], z[:up_bd], 'b', label='5 features')
+    plt.legend()
+    plt.title('Loss per epoch')
+    plt.xlabel('Epoches')
+    plt.xlim([0, 50])
+    plt.ylabel('Triplet Loss')
     plt.show()
 

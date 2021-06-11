@@ -31,6 +31,7 @@ import torch
 # Dataset
 from datasets.ModelNet40 import *
 from datasets.S3DIS import *
+from datasets.ScannetSLAM import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -94,13 +95,18 @@ if __name__ == '__main__':
     #       > 'last_XXX': Automatically retrieve the last trained model on dataset XXX
     #       > 'results/Log_YYYY-MM-DD_HH-MM-SS': Directly provide the path of a trained model
 
-    chosen_log = 'results/Log_2020-04-23_19-42-18'
+    # chosen_log = 'results/Log_2020-04-23_19-42-18'
+    chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
 
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = None
 
     # Eventually you can choose which feature is visualized (index of the deform convolution in the network)
-    deform_idx = 0
+    deform_idx = 14
+    # deform:
+    # conv3: 1; conv4: 4; conv5: 7
+    # kpconv:
+    # conv1: 1; conv2: 4; conv3: 8; conv4: 14; conv5: 20
 
     # Deal with 'last_XXX' choices
     chosen_log = model_choice(chosen_log)
@@ -142,8 +148,10 @@ if __name__ == '__main__':
 
     config.augment_noise = 0.0001
     config.batch_num = 1
+    config.val_batch_num = 1
     config.in_radius = 2.0
     config.input_threads = 0
+    config.print_current()
 
     ##############
     # Prepare Data
@@ -162,6 +170,10 @@ if __name__ == '__main__':
         test_dataset = S3DISDataset(config, set='validation', use_potentials=True)
         test_sampler = S3DISSampler(test_dataset)
         collate_fn = S3DISCollate
+    elif config.dataset == 'ScannetSLAM':
+        test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
+        test_sampler = ScannetSLAMSampler(test_dataset)
+        collate_fn = ScannetSLAMCollate
     else:
         raise ValueError('Unsupported dataset : ' + config.dataset)
 
@@ -175,6 +187,13 @@ if __name__ == '__main__':
 
     # Calibrate samplers
     test_sampler.calibration(test_loader, verbose=True)
+    print('Calibed batch limit:', type(test_sampler.dataset.batch_limit), test_sampler.dataset.batch_limit)
+    print('Calibed neighbor limit:', type(test_sampler.dataset.neighborhood_limits), test_sampler.dataset.neighborhood_limits)
+    # test_sampler.dataset.neighborhood_limits[0] = 95
+    # test_sampler.dataset.neighborhood_limits[1] = 34
+    # test_sampler.dataset.neighborhood_limits[2] = 35
+    # test_sampler.dataset.neighborhood_limits[3] = 39
+    # print('Calibed neighbor limit:', type(test_sampler.dataset.neighborhood_limits), test_sampler.dataset.neighborhood_limits)
 
     print('\nModel Preparation')
     print('*****************')

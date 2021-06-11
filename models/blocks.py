@@ -61,6 +61,8 @@ def gather(x, idx, method=2):
             new_s = list(idx.size())
             new_s[i+n] = di
             idx = idx.expand(new_s)
+        # x.gather(0, idx) == x[i][j][k]=x[idx[i][j][k]][j][k]
+        # gathers all the features of the neighbors of each input points
         return x.gather(0, idx)
     else:
         raise ValueError('Unkown method')
@@ -182,6 +184,7 @@ class KPConv(nn.Module):
         # Initialize weights
         self.weights = Parameter(torch.zeros((self.K, in_channels, out_channels), dtype=torch.float32),
                                  requires_grad=True)
+        # print(self.weights.shape)
 
         # Initiate weights for offsets
         if deformable:
@@ -557,8 +560,16 @@ class SimpleBlock(nn.Module):
             q_pts = batch.points[self.layer_ind]
             s_pts = batch.points[self.layer_ind]
             neighb_inds = batch.neighbors[self.layer_ind]
-
+        
+        # if self.layer_ind == 0:
+        #     print('Start one forward pass')
+        #     print(x.shape)
+        
         x = self.KPConv(q_pts, s_pts, neighb_inds, x)
+
+        # if self.layer_ind == 0:
+        #     print(x.shape)
+
         return self.leaky_relu(self.batch_norm(x))
 
 
@@ -630,15 +641,32 @@ class ResnetBottleneckBlock(nn.Module):
             s_pts = batch.points[self.layer_ind]
             neighb_inds = batch.neighbors[self.layer_ind]
 
+        # if self.layer_ind == 0:
+        #     print('Start one forward pass')
+        #     print(features.shape)
+
         # First downscaling mlp
         x = self.unary1(features)
 
+        # if self.layer_ind == 0:
+        #     print(x.shape)
+
         # Convolution
         x = self.KPConv(q_pts, s_pts, neighb_inds, x)
+       
+        # if self.layer_ind == 0:
+        #     print(x.shape)
+        
         x = self.leaky_relu(self.batch_norm_conv(x))
+        
+        # if self.layer_ind == 0:
+        #     print(x.shape)
 
         # Second upscaling mlp
         x = self.unary2(x)
+        
+        # if self.layer_ind == 0:
+        #     print(x.shape)
 
         # Shortcut
         if 'strided' in self.block_name:
@@ -646,6 +674,10 @@ class ResnetBottleneckBlock(nn.Module):
         else:
             shortcut = features
         shortcut = self.unary_shortcut(shortcut)
+
+        # if self.layer_ind == 0:
+        #     print(shortcut.shape)
+        #     print('End one forward pass')
 
         return self.leaky_relu(x + shortcut)
 

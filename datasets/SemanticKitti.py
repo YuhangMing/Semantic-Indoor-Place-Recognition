@@ -62,7 +62,9 @@ class SemanticKittiDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '../../Data/SemanticKitti'
+        # self.path = '../../Data/SemanticKitti'
+        self.path = '/media/yohann/Datasets/datasets/SemanticKitti'
+        # self.path = '/mnt/nas_7/datasets/SemanticKitti'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'slam_segmentation'
@@ -72,17 +74,17 @@ class SemanticKittiDataset(PointCloudDataset):
 
         # Get a list of sequences
         if self.set == 'training':
-            self.sequences = ['{:02d}'.format(i) for i in range(11) if i != 8]
+            self.scenes = ['{:02d}'.format(i) for i in range(11) if i != 8]
         elif self.set == 'validation':
-            self.sequences = ['{:02d}'.format(i) for i in range(11) if i == 8]
+            self.scenes = ['{:02d}'.format(i) for i in range(11) if i == 8]
         elif self.set == 'test':
-            self.sequences = ['{:02d}'.format(i) for i in range(11, 22)]
+            self.scenes = ['{:02d}'.format(i) for i in range(11, 22)]
         else:
             raise ValueError('Unknown set for SemanticKitti data: ', self.set)
 
         # List all files in each sequence
         self.frames = []
-        for seq in self.sequences:
+        for seq in self.scenes:
             velo_path = join(self.path, 'sequences', seq, 'velodyne')
             frames = np.sort([vf[:-4] for vf in listdir(velo_path) if vf.endswith('.bin')])
             self.frames.append(frames)
@@ -271,7 +273,7 @@ class SemanticKittiDataset(PointCloudDataset):
                         continue
 
                 # Path of points and labels
-                seq_path = join(self.path, 'sequences', self.sequences[s_ind])
+                seq_path = join(self.path, 'sequences', self.scenes[s_ind])
                 velo_file = join(seq_path, 'velodyne', self.frames[s_ind][f_ind - f_inc] + '.bin')
                 if self.set == 'test':
                     label_file = None
@@ -552,7 +554,7 @@ class SemanticKittiDataset(PointCloudDataset):
         self.times = []
         self.poses = []
 
-        for seq in self.sequences:
+        for seq in self.scenes:
 
             seq_folder = join(self.path, 'sequences', seq)
 
@@ -583,7 +585,7 @@ class SemanticKittiDataset(PointCloudDataset):
             class_frames_bool = np.zeros((0, self.num_classes), dtype=np.bool)
             self.class_proportions = np.zeros((self.num_classes,), dtype=np.int32)
 
-            for s_ind, (seq, seq_frames) in enumerate(zip(self.sequences, self.frames)):
+            for s_ind, (seq, seq_frames) in enumerate(zip(self.scenes, self.frames)):
 
                 frame_mode = 'single'
                 if self.config.n_frames > 1:

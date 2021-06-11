@@ -103,8 +103,8 @@ class SinglePlyDataset(PointCloudDataset):
 
         # Dataset folder
         # self.path = '../../Data/S3DIS'
-        # self.path = '/media/yohann/My Passport/datasets/S3DIS/Original_Version'
-        self.path = '/media/yohann/My Passport/datasets/7Scenes/point_cloud'
+        # self.path = '/media/yohann/Datasets/datasets/S3DIS/Original_Version'
+        self.path = '/media/yohann/Datasets/datasets/7Scenes/point_cloud'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'cloud_segmentation'

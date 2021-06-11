@@ -127,10 +127,10 @@ class ScannetDataset(PointCloudDataset):
 
         # Dataset folder
         # # self.path = '/home/yohann/NNs/data/ScanNet'
-        self.path = '/media/yohann/My Passport/datasets/ScanNet'
+        self.path = '/media/yohann/Datasets/datasets/ScanNet'
         # # self.path = '/mnt/nas_7/datasets/ScanNet'
         # # test on seven scenes
-        # self.path = '/media/yohann/My Passport/datasets/7Scenes/point_cloud'
+        # self.path = '/media/yohann/Datasets/datasets/7Scenes/point_cloud'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'cloud_segmentation'

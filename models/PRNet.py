@@ -51,24 +51,35 @@ class PRNet(nn.Module):
                                   gating=False, add_batch_norm=False)
 
         # Network Losses
+        # Note: only difference between Torch built-in triplet loss and TF version PNV author's triplet loss
+        # is Torch use mean for reduction by default, while TF uses sum
+        # change Torch to use sum reduction by adding reduction='sum' 
         self.criterion = torch.nn.TripletMarginLoss(margin=1.0, p=2.0)
 
 
-    def forward(self, feat_vec):
+    def forward(self, feat_vec, num_feat=5):
         # intpu a list of feature vectors 
         # (from each conv blocks)
-        # concatenate feature vectors from each conv block
         # print(feat_vec[0].size())
         # x_1 = self.FC_1(torch.unsqueeze(feat_vec[0], 0))    # single batch test, add back batch dimension
-        # x_2 = self.FC_2(torch.unsqueeze(feat_vec[1], 0))
+        
+        # concatenate feature vectors from each conv block
         x_3 = self.FC_3(feat_vec[2])
         x_4 = self.FC_4(feat_vec[3])
         x_5 = feat_vec[4]
-        # (N1+N2+N3+N4+N5 = N, 1024) [1, 11667, 1024]
-        x = torch.cat((x_3, x_4, x_5), 0)
-        # x = torch.cat((x_1, x_2, x_3, x_4, x_5), 1)
-        # print('\nfeature size per layer:', x_3.size(), x_4.size(), x_5.size())
-        # # print('feature size per layer:', x_1.size(), x_2.size(), x_3.size(), x_4.size(), x_5.size())
+        if num_feat == 5:
+            print('using all 5 block features')
+            x_1 = self.FC_1(feat_vec[0])
+            x_2 = self.FC_2(feat_vec[1])
+            # (N1+N2+N3+N4+N5 = N, 1024) [1, 11667, 1024]
+            x = torch.cat((x_1, x_2, x_3, x_4, x_5), 0)
+        elif num_feat == 3:
+            print('using last 3 block features')
+            x = torch.cat((x_3, x_4, x_5), 0)
+        else:
+            raise ValueError('unsupport feature number')
+        
+        # print('feature size per layer:', x_1.size(), x_2.size(), x_3.size(), x_4.size(), x_5.size())
         # print('cated feature size:', x.size())
 
         # get global descriptor

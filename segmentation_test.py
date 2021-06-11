@@ -24,8 +24,14 @@ import torch
 # Dataset
 # from datasets.ModelNet40 import *
 # from datasets.SemanticKitti import *
+# stanford cloud segmentation
 from datasets.S3DIS import *
+# scannet cloud segmentation
+from datasets.Scannet import *
+# cloud segmentation using rgbd pcd from 7 scenes
 from datasets.SinglePLY import *
+# SLAM segmentation
+from datasets.ScannetSLAM import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -94,9 +100,11 @@ if __name__ == '__main__':
     #       > 'last_XXX': Automatically retrieve the last trained model on dataset XXX
     #       > '(old_)results/Log_YYYY-MM-DD_HH-MM-SS': Directly provide the path of a trained model
 
+    # chosen_log = 'last_S3DIS'
     # chosen_log = 'results/Log_2021-04-19_10-01-23'  # => S3DIS, batch 4, 1st feat 64, 0.04-2.0
-    chosen_log = 'last_S3DIS'
-
+    # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
+    chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
+    
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = None
 
@@ -143,7 +151,7 @@ if __name__ == '__main__':
     config.batch_num = 1
     #config.in_radius = 4
     config.validation_size = 50    # decide how many points will be covered in prediction
-    config.input_threads = 10
+    config.input_threads = 0
     config.print_current()
 
     ##############
@@ -158,17 +166,26 @@ if __name__ == '__main__':
     print('Data Preparation')
     print('****************')
     # Initiate dataset
-    # use_potential means "Coarser Potential Location"
-    if data == '7Scenes':
-        test_dataset = SinglePlyDataset(config, set, use_potentials=True)
-        test_sampler = SingPlySampler(test_dataset)
-        collate_fn = SinglePlyCollate
-    elif data == 'S3DIS':
-        test_dataset = S3DISDataset(config, set, use_potentials=True)
-        test_sampler = S3DISSampler(test_dataset)
-        collate_fn = S3DISCollate
-    else:
-        raise ValueError('Unknown dataset')
+    # Use the provided dataset and loader, for easy batch generation
+    #### S3DIS
+    # test_dataset = S3DISDataset(config, 'visualise', use_potentials=True)
+    # test_sampler = S3DISSampler(test_dataset)
+    # collate_fn = S3DISCollate
+    #### 7Scenes
+    # test_dataset = SinglePlyDataset(config, 'visualise', use_potentials=True)
+    # test_sampler = SinglePlySampler(test_dataset)
+    # collate_fn = SinglePlyCollate
+    #### Scannet
+    # # test_dataset = ScannetDataset(config, 'validation', use_potentials=True)
+    # test_dataset = ScannetDataset(config, 'test', use_potentials=True)
+    # test_sampler = ScannetSampler(test_dataset)
+    # collate_fn = ScannetCollate
+    #### ScannetSLAM
+    test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
+    test_sampler = ScannetSLAMSampler(test_dataset)
+    collate_fn = ScannetSLAMCollate
+    print(test_dataset.label_values)
+    print(test_dataset.ignored_labels)
     
     # Data loader with automatic batching enabled
     # https://pytorch.org/docs/stable/data.html
@@ -221,14 +238,14 @@ if __name__ == '__main__':
 
     # Calibrate samplers
     test_sampler.calibration(test_loader, verbose=True)
+    print('Calibed batch limit:', test_sampler.dataset.batch_limit)
+    print('Calibed neighbor limit:', test_sampler.dataset.neighborhood_limits)
 
     print('\nModel Preparation')
     print('*****************')
     # Define network model
     t1 = time.time()
-    if config.dataset_task == 'classification':
-        net = KPCNN(config)
-    elif config.dataset_task in ['cloud_segmentation', 'slam_segmentation']:
+    if config.dataset_task in ['cloud_segmentation', 'slam_segmentation']:
         net = KPFCNN(config, test_dataset.label_values, test_dataset.ignored_labels)
     else:
         raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)
@@ -238,15 +255,18 @@ if __name__ == '__main__':
     print('Done in {:.1f}s\n'.format(time.time() - t1))
 
     print('\nStart test')
-    print('**********\n')
+    print('**********')
     # Perform prediction
-    if config.dataset_task == 'cloud_segmentation':
-        tester.cloud_segmentation_test(net, test_loader, config, 0)
+    if config.dataset_task == 'cloud_segmentaion':
+        # tester.cloud_segmentation_test(net, test_loader, config, 0)
+        tester.segmentation_with_return(net, test_loader, config, 0)
     elif config.dataset_task == 'slam_segmentation':
-        tester.slam_segmentation_test(net, test_loader, config)
+        tester.slam_segmentation_test(net, test_loader, config, 0)
     else:
-        raise ValueError('Unsupported dataset_task for testing: ' + config.dataset_task)
-
+        raise ValueError('Unsupported dataset task: ' + config.dataset_task)
+    # # Forward pass
+    # outputs = net(batch, config)
+    # inter_en_feat = net.inter_encoder_features(batch, config)
 
     # Visualisation
     # # plot legends
@@ -268,41 +288,41 @@ if __name__ == '__main__':
     # # plot color annotation
     # plt.show()
 
-    if data == 'S3DIS':
-        # S3DIS
-        rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
-                                        test_dataset.train_path, 
-                                        'Area_5', test_dataset.room_name + ".ply"))
-    elif data == '7Scenes':
-        # Seven Scenes
-        rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
-                                        test_dataset.train_path, 
-                                        'pumpkin', test_dataset.room_name + ".ply"))
-    else:
-        raise ValueError('Unknown dataset')
-    vis1 = o3d.visualization.Visualizer()
-    vis1.create_window(window_name='RGB', width=960, height=540, left=0, top=0)
-    vis1.add_geometry(rgb)
+    # if data == 'S3DIS':
+    #     # S3DIS
+    #     rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
+    #                                     test_dataset.train_path, 
+    #                                     'Area_5', test_dataset.room_name + ".ply"))
+    # elif data == '7Scenes':
+    #     # Seven Scenes
+    #     rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
+    #                                     test_dataset.train_path, 
+    #                                     'pumpkin', test_dataset.room_name + ".ply"))
+    # else:
+    #     raise ValueError('Unknown dataset')
+    # vis1 = o3d.visualization.Visualizer()
+    # vis1.create_window(window_name='RGB', width=960, height=540, left=0, top=0)
+    # vis1.add_geometry(rgb)
 
-    pred = o3d.io.read_point_cloud(join('test', 
-                                        config.saving_path.split('/')[-1], 
-                                        'predictions',
-                                        test_dataset.room_name+'_pred.ply'))
-    vis2 = o3d.visualization.Visualizer()
-    vis2.create_window(window_name='prediction', width=960, height=540, left=0, top=0)
-    vis2.add_geometry(pred)
-    # visualise segmentation result with original color pc
-    while True:
-        vis1.update_geometry(rgb)
-        if not vis1.poll_events():
-            break
-        vis1.update_renderer()
+    # pred = o3d.io.read_point_cloud(join('test', 
+    #                                     config.saving_path.split('/')[-1], 
+    #                                     'predictions',
+    #                                     test_dataset.room_name+'_pred.ply'))
+    # vis2 = o3d.visualization.Visualizer()
+    # vis2.create_window(window_name='prediction', width=960, height=540, left=0, top=0)
+    # vis2.add_geometry(pred)
+    # # visualise segmentation result with original color pc
+    # while True:
+    #     vis1.update_geometry(rgb)
+    #     if not vis1.poll_events():
+    #         break
+    #     vis1.update_renderer()
 
-        vis2.update_geometry(pred)
-        if not vis2.poll_events():
-            break
-        vis2.update_renderer()
+    #     vis2.update_geometry(pred)
+    #     if not vis2.poll_events():
+    #         break
+    #     vis2.update_renderer()
 
-    vis1.destroy_window()
-    vis2.destroy_window()
+    # vis1.destroy_window()
+    # vis2.destroy_window()
 
