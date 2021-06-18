@@ -69,14 +69,14 @@ if __name__ == '__main__':
         conda acitvate graph
     
     Train with LAST 3 blocks of encoder features: 
-        python feature_embedding_test.py --train --feat_num 3
+        python feature_embedding_test.py --train --num_feat 3
     Train with ALL 5 blocks of encoder features: 
-        python feature_embedding_test.py --train --feat_num 5
+        python feature_embedding_test.py --train --num_feat 5
     
     Test with LAST 3 blocks of encoder features: 
-        python feature_embedding_test.py --test --feat_num 3
+        python feature_embedding_test.py --test --num_feat 3
     Test with ALL 5 blocks of encoder features: 
-        python feature_embedding_test.py --test --feat_num 5
+        python feature_embedding_test.py --test --num_feat 5
     """
 
     #####################
@@ -103,9 +103,10 @@ if __name__ == '__main__':
     print('*************************************')
     t = time.time()
     # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
-    chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
+    # chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
+    chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = None
+    chkp_idx = 9 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
     # Find all checkpoints in the chosen training folder
@@ -140,6 +141,7 @@ if __name__ == '__main__':
 
     # set label manually here for scannet segmentation
     # with the purpose of putting loading parts together
+    # ScanNet SLAM
     label_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
     ignored_labels = [0]
     # Initialise segmentation network
@@ -167,18 +169,17 @@ if __name__ == '__main__':
     print("SEGMENTATION model and training state restored with", epoch, "epoches trained.")
     print('Done in {:.1f}s\n'.format(time.time() - t))
 
+    ###########################
+    # TRAIN RECOGNITION NETWORK
+    ###########################
     if FLAGS.bTRAIN:
         print('\nTRAINING VLAD Layer...\n')
-
-        ###########################
-        # TRAIN RECOGNITION NETWORK
-        ###########################
 
         print('\nData Preparation')
         print('****************')
         t = time.time()
         # new dataset for triplet input
-        train_dataset = ScannetTripleDataset(config, 'training', balance_classes=False)
+        train_dataset = ScannetTripleDataset(config, 'training', balance_classes=False, kf_step=15)
         # val_dataset = ScannetTripleDataset(config, 'validation', balance_classes=False)
 
         # Initialize samplers
@@ -249,12 +250,11 @@ if __name__ == '__main__':
         print('Forcing exit now')
         os.kill(os.getpid(), signal.SIGINT)
 
+    ##########################
+    # TEST RECOGNITION NETWORK
+    ##########################
     else:
         print('\nTESTING VLAD Layer...\n')
-
-        ##########################
-        # TEST RECOGNITION NETWORK
-        ##########################
         
         print('\nLoad pre-trained recognition VLAD')
         print('*********************************')

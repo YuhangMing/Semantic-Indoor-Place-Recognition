@@ -81,8 +81,8 @@ class ScannetTripleDataset(PointCloudDataset):
         self.set = set
 
         # Get a list of sequences
-        data_split_path = join(self.path, "test_files")
-        # data_split_path = join(self.path, "Tasks/Benchmark")
+        # data_split_path = join(self.path, "test_files")
+        data_split_path = join(self.path, "tools/Tasks/Benchmark")
         # Cloud names
         if self.set == 'training':
             scene_file_name = join(data_split_path, 'scannetv2_train.txt')
@@ -184,7 +184,7 @@ class ScannetTripleDataset(PointCloudDataset):
         self.files = []         # list of list of pcd files created, pts in camera coordinate frame
         # training/val only
         self.pos_thred = 2**2
-        self.centers = []       # list of list of pcd centers in world coordinate frame
+        # self.centers = []       # list of list of pcd centers in world coordinate frame
         self.posIds = []        # list of dictionary of positive pcd example ids for training
         self.negIds = []        # list of dictionary of negative pcd example ids for training
         # val/testing only
@@ -341,21 +341,33 @@ class ScannetTripleDataset(PointCloudDataset):
                 # print(num_pos_ids, pos_s_ind, pos_f_inds)
                 
                 # Negative pcd indices
-                neg_s_inds = np.random.randint(0, len(self.scenes), 4)
+                if len(self.negIds[s_ind][f_ind]) > 0:
+                    neg_s_inds = [s_ind]
+                else:
+                    neg_s_inds = []
+                
+                num_neg_samples = 18
+                while len(neg_s_inds) < num_neg_samples:
+                    tmp_neg = np.random.choice( len(self.scenes) )
+                    # double check to prevent same (as anchor) scene is selected
+                    if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
+                        neg_s_inds.append(tmp_neg)
+                    
+                # neg_s_inds = np.random.randint(0, len(self.scenes), 4)
                 neg_f_inds = []
                 for id, neg_s in enumerate(neg_s_inds):
                     if neg_s == s_ind:
-                        # if no negative ids for current pcd
-                        # generate neg id from another scene
-                        if len(self.negIds[neg_s][f_ind]) == 0:
-                            tmp = np.random.randint(0, len(self.scenes))
-                            while tmp == s_ind:
-                                tmp = np.random.randint(0, len(self.scenes))
-                            neg_s_inds[id] = tmp
-                            neg_f_inds.append(np.random.randint(0, len(self.fids[tmp])))
-                        # randomly choose one from the negative ids
-                        else:
-                            neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
+                        # # if no negative ids for current pcd
+                        # # generate neg id from another scene
+                        # if len(self.negIds[neg_s][f_ind]) == 0:
+                        #     tmp = np.random.randint(0, len(self.scenes))
+                        #     while tmp == s_ind:
+                        #         tmp = np.random.randint(0, len(self.scenes))
+                        #     neg_s_inds[id] = tmp
+                        #     neg_f_inds.append(np.random.randint(0, len(self.fids[tmp])))
+                        # # randomly choose one from the negative ids
+                        # else:
+                        neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
                     else:
                         neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
                 neg_f_inds = np.array(neg_f_inds)
@@ -364,9 +376,11 @@ class ScannetTripleDataset(PointCloudDataset):
                 # Other negative pcd index for quadruplet
                 # skip for now
 
-                all_indices = [[s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]], 
-                            [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
-                            [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
+                all_indices = [ [s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]] ]
+                for idx in range(num_neg_samples):
+                    all_indices.append([neg_s_inds[idx], neg_f_inds[idx]])
+                            # [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
+                            # [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
                 # print('All chosen indices: [query/current], [positive]*2, [negative]*4', all_indices)
             else:
                 # in testing, only get the current index
@@ -452,7 +466,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # Convert p0 to world coordinates
                 # in case of Matrix x Vector, np.dot = np.matmul
                 crnt_pose = self.poses[s_ind][f_ind]
-                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
+                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]  # already computed in self.centers?
                 # print("\nSubsampled Cloud Info: ")
                 # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
                 # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
@@ -594,11 +608,16 @@ class ScannetTripleDataset(PointCloudDataset):
             makedirs(self.input_pcd_path)
         
         print('current kf step =', self.kf_step)
+        # load pre-processed pos-neg indices
+        vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_'+self.set+'.txt')
+        with open(vlad_pn_file, "rb") as f:
+            # dict, key = scene string, val = list of pairs of (list pos, list neg)
+            all_scene_pos_neg = pickle.load(f)
+
         for i, scene in enumerate(self.scenes):
             ###############
             # Sequence data
             ###############
-
             scene_folder = join(self.path, 'scans', scene)
 
             # get num of frames and intrinsics
@@ -631,8 +650,12 @@ class ScannetTripleDataset(PointCloudDataset):
             scene_files = []
             scene_poses = []
             scene_fids = []
-            scene_centers = []
+            # scene_centers = []
+            pcd_count = 0
+            all_posId = {}
+            all_negId = {}
             for j in range(0, self.nframes[-1], self.kf_step):
+                print(100*j/self.nframes[-1], '%', flush=True, end='\r')
                 frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
                 # print(frame_pcd_file)
                 frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
@@ -640,7 +663,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # check if pose is lost
                 chk_val = np.sum(pose)
                 if np.isinf(chk_val) or np.isnan(chk_val):
-                    print('  Invalid pose for', scene, 'frame', j)
+                    # print('  Invalid pose for', scene, 'frame', j)
                     continue
                 Rot = pose[:3, :3]
                 trans = pose[:3, 3]
@@ -650,14 +673,20 @@ class ScannetTripleDataset(PointCloudDataset):
                 scene_poses.append(pose)
                 scene_fids.append(j)
 
+                # 
+                all_posId[pcd_count] = all_scene_pos_neg[scene][pcd_count][0]
+                all_negId[pcd_count] = all_scene_pos_neg[scene][pcd_count][1]
+                pcd_count += 1
+
                 # store small point clouds and centers
                 if exists(frame_pcd_file) and exists(frame_subpcd_file):
-                    if self.set in ['training', 'validation']:
-                        data = read_ply(frame_subpcd_file)
-                        points = np.vstack((data['x'], data['y'], data['z'])).T
-                        center = np.mean(points, axis=0)
-                        # get center in world coordinates
-                        scene_centers.append(np.dot(Rot, center)+trans)
+                    continue
+                    # if self.set in ['training', 'validation']:
+                    #     data = read_ply(frame_subpcd_file)
+                    #     points = np.vstack((data['x'], data['y'], data['z'])).T
+                    #     center = np.mean(points, axis=0)
+                    #     # get center in world coordinates
+                    #     scene_centers.append(np.dot(Rot, center)+trans)
 
                 else:
                     # get current point cloud from depth image
@@ -745,40 +774,40 @@ class ScannetTripleDataset(PointCloudDataset):
                             ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
 
 
-                    if self.set in ['training', 'validation']:
-                        # center = np.mean(cam_pts, axis=0)
-                        center = np.mean(sub_pts, axis=0)
-                        # get center in world coordinates
-                        scene_centers.append(np.dot(Rot, center)+trans)
+                    # if self.set in ['training', 'validation']:
+                    #     # center = np.mean(cam_pts, axis=0)
+                    #     center = np.mean(sub_pts, axis=0)
+                    #     # get center in world coordinates
+                    #     scene_centers.append(np.dot(Rot, center)+trans)
 
                     # transform back for next frame
                     hd_pcd.transform(pose)
                     hd_pcd_labeled.transform(pose)
-
+            print('100 %')
             self.files.append(scene_files)
             self.poses.append(scene_poses)
             self.fids.append(scene_fids)
             if self.set in ['training', 'validation']:
-                all_posId = {}
-                all_negId = {}
-                for p, cntr in enumerate(scene_centers):
-                    single_posId = []
-                    single_negId = []
-                    for q, cntr2 in enumerate(scene_centers):
-                        if q == p:
-                            continue
-                        dist2 = np.sum((cntr - cntr2)**2)
-                        # print(dist2)
-                        if dist2 < self.pos_thred:
-                            single_posId.append(q)
-                            # print(p, q, dist2)
-                        else:
-                            single_negId.append(q)
-                    all_posId[p] = single_posId
-                    all_negId[p] = single_negId
+                # all_posId = {}
+                # all_negId = {}
+                # for p, cntr in enumerate(scene_centers):
+                #     single_posId = []
+                #     single_negId = []
+                #     for q, cntr2 in enumerate(scene_centers):
+                #         if q == p:
+                #             continue
+                #         dist2 = np.sum((cntr - cntr2)**2)
+                #         # print(dist2)
+                #         if dist2 < self.pos_thred:
+                #             single_posId.append(q)
+                #             # print(p, q, dist2)
+                #         else:
+                #             single_negId.append(q)
+                #     all_posId[p] = single_posId
+                #     all_negId[p] = single_negId
                 self.posIds.append(all_posId)
                 self.negIds.append(all_negId)
-                self.centers.append(scene_centers)
+                # self.centers.append(scene_centers)
 
             # print(self.centers)
             # print(self.posIds)

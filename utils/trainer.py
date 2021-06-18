@@ -1063,11 +1063,14 @@ class RecogModelTrainer:
 
                 # separate the stacked features to different feature vectors
                 # Dictionary of query, positive, negative point cloud features
-                feat_vecs = {'query': [[]], 'positive': [[], []], 
-                                'negative': [[], [], [], []]}
-                feat_keys = ['query', 'positive', 'positive', 
-                                'negative', 'negative', 'negative', 'negative']
-                feats_idx = [0, 0, 1, 0, 1, 2, 3]
+                num_neg_sample = 18
+                feat_vecs = {'query': [[]], 'positive': [[], []], 'negative': []}
+                feat_keys = ['query', 'positive', 'positive']
+                feats_idx = [0, 0, 1]
+                for idx in range(num_neg_sample):
+                    feat_vecs['negative'].append([])
+                    feat_keys.append('negative')
+                    feats_idx.append(idx)
                 # print('\n  ', len(inter_en_feat), 'intermediate features stored, size and length shown below:')
                 for m, feat in enumerate(inter_en_feat):
                     # feat = feat.to(torch.device("cpu"))

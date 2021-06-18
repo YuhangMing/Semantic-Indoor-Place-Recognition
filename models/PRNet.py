@@ -1,7 +1,7 @@
 #
 #
 #      0=================================0
-#      |    Kernel Point Convolutions    |
+#      |           VLAD Layers           |
 #      0=================================0
 #
 #
@@ -26,7 +26,7 @@ class PRNet(nn.Module):
     Class defining the place recognition netowrk
     """
 
-    def __init__(self, config):
+    def __init__(self, config, num_feat=5):
         super(PRNet, self).__init__()
 
         # Feature concatenation layer
@@ -37,8 +37,9 @@ class PRNet(nn.Module):
 
         # FC layer stretching feat vector to the same dim
         # (N, *, H_in) -> (N, *, H_out)
-        self.FC_1 = UnaryBlock(in_size, feature_size, False, 0)
-        self.FC_2 = UnaryBlock(in_size*2, feature_size, False, 0)
+        if num_feat == 5:
+            self.FC_1 = UnaryBlock(in_size, feature_size, False, 0)
+            self.FC_2 = UnaryBlock(in_size*2, feature_size, False, 0)
         self.FC_3 = UnaryBlock(in_size*(2**2), feature_size, False, 0)
         self.FC_4 = UnaryBlock(in_size*(2**3), feature_size, False, 0)
 
@@ -91,15 +92,22 @@ class PRNet(nn.Module):
     def loss(self, a, p, n):
         # a: single tensor
         # p: list of 2 tensors
-        # n: list of 4 tensors
+        # n: list of 18 tensors
         
         # First try: TripletLoss
         # cat to meet tripletloss input requirement
-        anc = torch.cat((a,a,a,a,a,a,a,a), dim=0)
-        pos = torch.cat((p[0],p[0],p[0],p[0],
-                         p[1],p[1],p[1],p[1]), dim=0)
-        neg = torch.cat((n[0],n[1],n[2],n[3],
-                         n[0],n[1],n[2],n[3]), dim=0)
+        anc = torch.cat(18*2*[a], dim=0)
+        pos0 = torch.cat(18*[p[0]], dim=0)
+        pos1 = torch.cat(18*[p[1]], dim=0)
+        pos = torch.cat( (pos0, pos1), dim=0 )
+        # pos = torch.cat((p[0],p[0],p[0],p[0],
+        #                  p[1],p[1],p[1],p[1]), dim=0)
+        neg = n[0]
+        for nIdx in range(1, 18):
+            neg = torch.cat(neg, n[nIdx], dim=0)
+        neg = torch.cat( (neg, neg), dim=0 )
+        # neg = torch.cat((n[0],n[1],n[2],n[3],
+        #                  n[0],n[1],n[2],n[3]), dim=0)
         # compute loss
         loss = self.criterion(anc, pos, neg)
         

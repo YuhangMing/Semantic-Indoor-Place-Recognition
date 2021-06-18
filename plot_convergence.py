@@ -40,6 +40,7 @@ from utils.ply import read_ply
 from datasets.ModelNet40 import ModelNet40Dataset
 from datasets.S3DIS import S3DISDataset
 from datasets.SemanticKitti import SemanticKittiDataset
+from datasets.ScannetSLAM import ScannetSLAMDataset
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
@@ -678,7 +679,12 @@ def compare_convergences_SLAM(dataset, list_of_paths, list_of_names=None):
     ax.grid(linestyle='-.', which='both')
     #ax.set_yticks(np.arange(0.8, 1.02, 0.02))
 
-    displayed_classes = [0, 1, 2, 3, 4, 5, 6, 7]
+    # # default
+    # displayed_classes = [0, 1, 2, 3, 4, 5, 6, 7]
+    # SemanticKitti
+    displayed_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19]
+    # # Scannet SLAM
+    # displayed_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
     #displayed_classes = []
     for c_i, c_name in enumerate(class_list):
         if c_i in displayed_classes:
@@ -723,22 +729,25 @@ def experiment_name_1():
     """
 
     # Using the dates of the logs, you can easily gather consecutive ones. All logs should be of the same dataset.
+    # And give names to the logs (for plot legends)
+    # SemantiKitti
     start = 'Log_2021-06-11_02-47-11'
     end = 'Log_2021-06-11_04-20-14'
+    logs_names = ['deformed kernel, SemanticKitti',
+                  'rigid kernel, SemanticKitti',
+                  'name_log_3']
+    # # ScanNet SLAM
+    # start = 'Log_2021-06-16_02-31-04'
+    # end = 'Log_2021-06-16_02-42-30'
+    # logs_names = ['w/o color, ScanNetSLAM',
+    #               'with color, ScanNetSLAM',
+    #               'name_log_3']
 
     # Name of the result path
     res_path = 'results'
 
     # Gather logs and sort by date
     logs = np.sort([join(res_path, l) for l in listdir(res_path) if start <= l <= end])
-
-    # Give names to the logs (for plot legends)
-    # logs_names = ['batch#=2, 1st_feat_dim=128, 0.03-1.5',
-    #               'batch#=4, 1st_feat_dim=64, 0.04-20.',
-    #               'name_log_3']
-    logs_names = ['deformed kernel, SemanticKitti',
-                  'rigid kernel, SemanticKitti',
-                  'name_log_3']
 
     # safe check log names
     logs_names = np.array(logs_names[:len(logs)])
@@ -833,6 +842,9 @@ if __name__ == '__main__':
     elif config.dataset_task == 'slam_segmentation':
         if config.dataset.startswith('SemanticKitti'):
             dataset = SemanticKittiDataset(config)
+            compare_convergences_SLAM(dataset, logs, logs_names)
+        if config.dataset.startswith('ScannetSLAM'):
+            dataset = ScannetSLAMDataset(config)
             compare_convergences_SLAM(dataset, logs, logs_names)
     else:
         raise ValueError('Unsupported dataset : ' + plot_dataset)
