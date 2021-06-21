@@ -81,8 +81,8 @@ class ScannetTripleDataset(PointCloudDataset):
         self.set = set
 
         # Get a list of sequences
-        # data_split_path = join(self.path, "test_files")
-        data_split_path = join(self.path, "tools/Tasks/Benchmark")
+        data_split_path = join(self.path, "test_files")
+        # data_split_path = join(self.path, "tools/Tasks/Benchmark")
         # Cloud names
         if self.set == 'training':
             scene_file_name = join(data_split_path, 'scannetv2_train.txt')
@@ -234,7 +234,7 @@ class ScannetTripleDataset(PointCloudDataset):
             N = int(np.ceil(config.epoch_steps * self.batch_num * 1.1))
         else:
             N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
-
+        self.num_neg_samples = config.num_neg_samples
         print(config.validation_size)
         print(self.batch_num)
         print('N = ', N)
@@ -346,8 +346,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 else:
                     neg_s_inds = []
                 
-                num_neg_samples = 18
-                while len(neg_s_inds) < num_neg_samples:
+                while len(neg_s_inds) < self.num_neg_samples:
                     tmp_neg = np.random.choice( len(self.scenes) )
                     # double check to prevent same (as anchor) scene is selected
                     if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
@@ -377,7 +376,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # skip for now
 
                 all_indices = [ [s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]] ]
-                for idx in range(num_neg_samples):
+                for idx in range(self.num_neg_samples):
                     all_indices.append([neg_s_inds[idx], neg_f_inds[idx]])
                             # [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
                             # [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
@@ -612,6 +611,7 @@ class ScannetTripleDataset(PointCloudDataset):
         vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_'+self.set+'.txt')
         with open(vlad_pn_file, "rb") as f:
             # dict, key = scene string, val = list of pairs of (list pos, list neg)
+            # NOTE all ids are actual frame IDd, need to DIVIDE by 15 before using.
             all_scene_pos_neg = pickle.load(f)
 
         for i, scene in enumerate(self.scenes):

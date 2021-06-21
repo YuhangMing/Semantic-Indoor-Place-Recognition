@@ -187,6 +187,20 @@ class Config:
     saving = True
     saving_path = None
 
+    #####################
+    ## VLAD parameters ##
+    #####################
+
+    # seg_net log
+    KPlog = ''
+    # num of KP features used
+    num_feat = 5
+    # optimiser
+    optimiser = 'Adam'
+    # neg sample number
+    num_neg_samples = 8
+
+
     def __init__(self):
         """
         Class Initialyser
@@ -380,6 +394,13 @@ class Config:
             text_file.write('validation_size = {:d}\n'.format(self.validation_size))
             text_file.write('checkpoint_gap = {:d}\n'.format(self.checkpoint_gap))
 
+            # VLAD parameters
+            text_file.write('\n')
+            text_file.write('KPlog = {:s}\n'.format(self.KPlog))
+            text_file.write('num_feat = {:d}\n'.format(self.num_feat))
+            text_file.write('optimiser = {:s}\n'.format(self.optimiser))
+            text_file.write('num_neg_samples = {:d}\n'.format(self.num_neg_samples))
+
     def print_current(self):
         print('\n# -----------------------------------#')
         print('# Parameters of the training session #')
@@ -481,5 +502,12 @@ class Config:
         print('checkpoint_gap = {:d}'.format(self.checkpoint_gap))
         print('saving = {:d}'.format(self.saving))
         print('saving_path = {:s}'.format(self.saving_path))
+
+        # VLAD parameters
+        print('')
+        print('KPlog = {:s}'.format(self.KPlog))
+        print('num_feat = {:d}'.format(self.num_feat))
+        print('optimiser = {:s}'.format(self.optimiser))
+        print('num_neg_samples = {:d}\n'.format(self.num_neg_samples))
         print('# -----------------------------------#\n')
 

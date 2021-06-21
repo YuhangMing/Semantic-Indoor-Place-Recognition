@@ -85,11 +85,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', dest='bTRAIN', action='store_true', help='Set to train the VLAD layers')
     parser.add_argument('--test', dest='bTRAIN', action='store_false', help='Set to test the VLAD layers')
+    parser.add_argument('--optimiser', type=str, default='Adam', help='Choose the optimiser for training')
     parser.add_argument('--num_feat', type=int, default=5, help='How many block features to use [default: 5]')
     parser.add_argument('--eval', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
     parser.add_argument('--visualise', dest='bVISUAL', action='store_true', help='Set to visualise the VLAD results')
     FLAGS=parser.parse_args()
     print(FLAGS.bTRAIN)
+    print(FLAGS.optimiser)
     print(FLAGS.num_feat)
     print(FLAGS.bEVAL)
     print(FLAGS.bVISUAL)
@@ -126,6 +128,7 @@ if __name__ == '__main__':
     # Initialise and Load the configs
     config = Config()
     config.load(chosen_log)
+    config.KPlog = chosen_chkp
     # Change parameters for the TESTing here. 
     # For example, you can stop augmenting the input data.
     #config.augment_noise = 0.0001
@@ -174,6 +177,31 @@ if __name__ == '__main__':
     ###########################
     if FLAGS.bTRAIN:
         print('\nTRAINING VLAD Layer...\n')
+
+        # update parameters for recog training
+        config.num_feat = FLAGS.num_feat
+        config.optimiser = FLAGS.optimiser
+        config.num_neg_samples = 8
+        config.batch_num = 1
+        config.val_batch_num = 1
+        config.max_epoch = 50
+        config.epoch_steps = 5000
+        config.checkpoint_gap = 10
+        config.learning_rate = 1e-4
+        # config.lr_decays = {i: 1 for i in range(1, config.max_epoch)}
+        # for i in [10, 20, 30, 40]:
+        #     config.lr_decays[i] = 0.5
+        config.lr_decays = {i: 0.5 for i in [10, 20, 30, 40]}
+        config.weight_decay = 1e-3
+        if config.saving:
+            config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
+        print('Updated max_epoch / epoch_steps =', config.max_epoch, '/', config.epoch_steps)
+        print('        checkpoint_gap =', config.checkpoint_gap)
+        print('        batch_num train / val =', config.batch_num, '/', config.val_batch_num)
+        print('        learning_rate =', config.learning_rate)
+        print('        lr_decays =', config.lr_decays)
+        print('        weight_decay =', config.weight_decay)
+        print('        saving_path =', config.saving_path)
 
         print('\nData Preparation')
         print('****************')
@@ -228,15 +256,6 @@ if __name__ == '__main__':
         else:
             chosen_chkp = None
 
-        # update parameters for recog training
-        config.max_epoch = 50
-        config.checkpoint_gap = 10
-        if config.saving:
-            config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
-        print('Updated max_epoch =', config.max_epoch)
-        print('Updated checkpoint_gap =', config.checkpoint_gap)
-        print('Updated saving_path =', config.saving_path)
-
 
         print('\nPrepare Trainer')
         print('***************')
@@ -246,7 +265,7 @@ if __name__ == '__main__':
         print('\nStart training')
         print('**************')
         # TRAINING
-        trainer.train(reg_net, seg_net, train_loader, config, FLAGS.num_feat)
+        trainer.train(reg_net, seg_net, train_loader, config)
         print('Forcing exit now')
         os.kill(os.getpid(), signal.SIGINT)
 
@@ -255,7 +274,7 @@ if __name__ == '__main__':
     ##########################
     else:
         print('\nTESTING VLAD Layer...\n')
-        
+
         print('\nLoad pre-trained recognition VLAD')
         print('*********************************')
         t = time.time()

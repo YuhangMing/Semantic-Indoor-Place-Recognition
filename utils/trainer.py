@@ -23,6 +23,7 @@
 
 
 # Basic libs
+from multiprocessing import Value
 import torch
 import torch.nn as nn
 import numpy as np
@@ -939,10 +940,15 @@ class RecogModelTrainer:
         self.epoch = 0
         self.step = 0
 
-        # SGD optimiser
-        # self.optimizer = torch.optim.SGD(net.parameters(), lr=0.0001, momentum=0.98, weight_decay=0.001)
-        # Adam optimiser
-        self.optimizer = torch.optim.Adam(net.parameters(), lr=0.0001, weight_decay=0.001)
+        if config.optimiser in ['Sgd', 'sgd', 'SGD']:
+            # SGD optimiser
+            self.optimizer = torch.optim.SGD(net.parameters(), lr=config.learning_rate, momentum=config.momentum, weight_decay=config.weight_decay)
+        elif config.optimiser in ['Adam', 'adam', 'ADAM']:
+            # Adam optimiser
+            self.optimizer = torch.optim.Adam(net.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+        else:
+            raise ValueError('Unknown optmiser:', config.optmiser)
+        # print(self.optimizer.param_groups)
         
         # Choose to train on CPU or GPU
         if on_gpu and torch.cuda.is_available():
@@ -981,7 +987,7 @@ class RecogModelTrainer:
 
     # Training main
     # def train(self, net, training_loader, val_loader, config):
-    def train(self, net, segmentation, training_loader, config, num_feat=5):
+    def train(self, net, segmentation, training_loader, config):
         """
         Train the model on a particular dataset.
         """
@@ -1063,11 +1069,10 @@ class RecogModelTrainer:
 
                 # separate the stacked features to different feature vectors
                 # Dictionary of query, positive, negative point cloud features
-                num_neg_sample = 18
                 feat_vecs = {'query': [[]], 'positive': [[], []], 'negative': []}
                 feat_keys = ['query', 'positive', 'positive']
                 feats_idx = [0, 0, 1]
-                for idx in range(num_neg_sample):
+                for idx in range(config.num_neg_samples):
                     feat_vecs['negative'].append([])
                     feat_keys.append('negative')
                     feats_idx.append(idx)
@@ -1100,7 +1105,7 @@ class RecogModelTrainer:
                         # for layer in range(5):
                         #     print(val[layer].size())
                         # print(val) # on cuda:0
-                        descrip = net(val, num_feat)
+                        descrip = net(val, config.num_feat)
                         # print('descriptor: ', descrip.size())
                         # print(descrip)
                         vlad_desp.append(descrip)
@@ -1162,10 +1167,10 @@ class RecogModelTrainer:
             if config.saving and not exists(PID_file):
                 break
 
-            # # Update learning rate
-            # if self.epoch in config.lr_decays:
-            #     for param_group in self.optimizer.param_groups:
-            #         param_group['lr'] *= config.lr_decays[self.epoch]
+            # Update learning rate
+            if self.epoch in config.lr_decays:
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] *= config.lr_decays[self.epoch]
 
             # Update epoch
             self.epoch += 1

@@ -26,18 +26,20 @@ class PRNet(nn.Module):
     Class defining the place recognition netowrk
     """
 
-    def __init__(self, config, num_feat=5):
+    def __init__(self, config):
         super(PRNet, self).__init__()
 
         # Feature concatenation layer
         feature_size = config.first_features_dim *2 *2 *2 *2   # D
         in_size = config.first_features_dim
+        self.num_feat = config.num_feat
+        self.num_neg_samples = config.num_neg_samples
         # print(feature_size)
         # print(in_size)
 
         # FC layer stretching feat vector to the same dim
         # (N, *, H_in) -> (N, *, H_out)
-        if num_feat == 5:
+        if self.num_feat == 5:
             self.FC_1 = UnaryBlock(in_size, feature_size, False, 0)
             self.FC_2 = UnaryBlock(in_size*2, feature_size, False, 0)
         self.FC_3 = UnaryBlock(in_size*(2**2), feature_size, False, 0)
@@ -58,7 +60,7 @@ class PRNet(nn.Module):
         self.criterion = torch.nn.TripletMarginLoss(margin=1.0, p=2.0)
 
 
-    def forward(self, feat_vec, num_feat=5):
+    def forward(self, feat_vec):
         # intpu a list of feature vectors 
         # (from each conv blocks)
         # print(feat_vec[0].size())
@@ -68,13 +70,13 @@ class PRNet(nn.Module):
         x_3 = self.FC_3(feat_vec[2])
         x_4 = self.FC_4(feat_vec[3])
         x_5 = feat_vec[4]
-        if num_feat == 5:
+        if self.num_feat == 5:
             print('using all 5 block features')
             x_1 = self.FC_1(feat_vec[0])
             x_2 = self.FC_2(feat_vec[1])
             # (N1+N2+N3+N4+N5 = N, 1024) [1, 11667, 1024]
             x = torch.cat((x_1, x_2, x_3, x_4, x_5), 0)
-        elif num_feat == 3:
+        elif self.num_feat == 3:
             print('using last 3 block features')
             x = torch.cat((x_3, x_4, x_5), 0)
         else:
@@ -96,15 +98,16 @@ class PRNet(nn.Module):
         
         # First try: TripletLoss
         # cat to meet tripletloss input requirement
-        anc = torch.cat(18*2*[a], dim=0)
-        pos0 = torch.cat(18*[p[0]], dim=0)
-        pos1 = torch.cat(18*[p[1]], dim=0)
+        n_neg_samples = self.num_neg_samples
+        anc = torch.cat(2*n_neg_samples*[a], dim=0)
+        pos0 = torch.cat(n_neg_samples*[p[0]], dim=0)
+        pos1 = torch.cat(n_neg_samples*[p[1]], dim=0)
         pos = torch.cat( (pos0, pos1), dim=0 )
         # pos = torch.cat((p[0],p[0],p[0],p[0],
         #                  p[1],p[1],p[1],p[1]), dim=0)
         neg = n[0]
-        for nIdx in range(1, 18):
-            neg = torch.cat(neg, n[nIdx], dim=0)
+        for nIdx in range(1, n_neg_samples):
+            neg = torch.cat( (neg, n[nIdx]), dim=0)
         neg = torch.cat( (neg, neg), dim=0 )
         # neg = torch.cat((n[0],n[1],n[2],n[3],
         #                  n[0],n[1],n[2],n[3]), dim=0)
