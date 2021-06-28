@@ -66,6 +66,8 @@ class PRNet(nn.Module):
         # print(feat_vec[0].size())
         # x_1 = self.FC_1(torch.unsqueeze(feat_vec[0], 0))    # single batch test, add back batch dimension
         
+        # print('Input feature size per layer:', feat_vec[0].size(), feat_vec[1].size(), feat_vec[2].size(), 
+        #                                  feat_vec[3].size(), feat_vec[4].size())
         # concatenate feature vectors from each conv block
         x_3 = self.FC_3(feat_vec[2])
         x_4 = self.FC_4(feat_vec[3])
