@@ -303,6 +303,30 @@ if __name__ == '__main__':
 
 
     #### Batch/Neighbor limit check ####
+    path_local = '/media/yohann/Datasets/datasets/ScanNet'
+    path_server = '/media/yohann/Datasets/datasets'
+    # load local file
+    batch_local_file = os.path.join(path_local, 'neighbors_limits.pkl')
+    if os.path.exists(batch_local_file):
+        with open(batch_local_file, 'rb') as file:
+            batch_local_dict = pickle.load(file)
+    else:
+        batch_local_dict = {}
+    # load server file
+    batch_server_file = os.path.join(path_server, 'neighbors_limits.pkl')
+    if os.path.exists(batch_server_file):
+        with open(batch_server_file, 'rb') as file:
+            batch_server_dict = pickle.load(file)
+    else:
+        batch_server_dict = {}
+    
+    # update server file
+    for key, val in batch_local_dict.items():
+        if key not in batch_server_dict.keys():
+            batch_server_dict[key] = val
+    with open(batch_server_file, 'wb') as file:
+        pickle.dump(batch_server_dict, file)
+
     paths = ['/media/yohann/Datasets/datasets', '/media/yohann/Datasets/datasets/ScanNet']
     for path in paths:
         print(path)

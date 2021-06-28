@@ -156,8 +156,10 @@ if __name__ == '__main__':
     config.batch_num = 1
     config.val_batch_num = 1
     #config.in_radius = 4
-    config.validation_size = 60    # decide how many points will be covered in prediction
+    config.validation_size = 300    # decide how many points will be covered in prediction
     config.input_threads = 0
+    config.max_in_points = 9000
+    config.max_val_points = 9000
     config.print_current()
 
     ##############

@@ -1071,11 +1071,13 @@ class ModelTester:
                                 frame_points = np.fromfile(velo_file, dtype=np.float32)
                                 frame_points = frame_points.reshape((-1, 4))
                             elif test_loader.dataset.name == 'ScannetSLAM':
-                                file_name = test_loader.dataset.files[s_ind][f_ind]
-                                if not 'sub' in file_name:
-                                    file_name = file_name[:-4]+'_sub.ply'
-                                data = read_ply(file_name)
-                                frame_points = np.vstack((data['x'], data['y'], data['z'])).T
+                                # get points from the batch
+                                frame_points = batch.points[0].cpu().detach().numpy()[i0:i0 + length]
+                                # file_name = test_loader.dataset.files[s_ind][f_ind]
+                                # if not 'sub' in file_name:
+                                #     file_name = file_name[:-4]+'_sub.ply'
+                                # data = read_ply(file_name)
+                                # frame_points = np.vstack((data['x'], data['y'], data['z'])).T
                             else:
                                 raise ValueError('Unknown dataset', test_loader.dataset.name)
 
@@ -1088,6 +1090,7 @@ class ModelTester:
                                           [frame_points[:, :3], frame_preds, pots],
                                           ['x', 'y', 'z', 'pre', 'pots'])
                             else:
+                                # print(frame_points.shape, frame_preds.shape)
                                 write_ply(predpath,
                                           [frame_points[:, :3], frame_preds],
                                           ['x', 'y', 'z', 'pre'])

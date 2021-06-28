@@ -94,7 +94,7 @@ class ScannetSLAMDataset(PointCloudDataset):
             scene_file_name = join(data_split_path, 'scannetv2_test.txt')
             self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
             # print((self.scenes))
-            self.scenes = [self.scenes[0]]
+            self.scenes = [self.scenes[4]]
             print((self.scenes))
             # self.scenes = [np.loadtxt(scene_file_name, dtype=np.str)]   # Single test file
         else:
@@ -223,9 +223,11 @@ class ScannetSLAMDataset(PointCloudDataset):
         self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
         self.prepare_point_cloud()
 
+        # print(self.fids)
         seq_inds = np.hstack([np.ones(len(_), dtype=np.int32) * i for i, _ in enumerate(self.fids)])
         frame_inds = np.hstack([np.arange(len(_), dtype=np.int32) for _ in self.fids])
         self.all_inds = np.vstack((seq_inds, frame_inds)).T # 2D array, 1st column is index of scenes, 2nd is index of frames
+        # print(self.all_inds)
 
         # # Init variables
         # self.calibrations = []
@@ -331,6 +333,7 @@ class ScannetSLAMDataset(PointCloudDataset):
                 # Update epoch indice
                 self.epoch_i += 1
             s_ind, f_ind = self.all_inds[ind]
+            # print('in epochs:', ind, s_ind, f_ind)
 
             #################
             # Load the points
@@ -338,7 +341,7 @@ class ScannetSLAMDataset(PointCloudDataset):
             #################
 
             current_file = self.files[s_ind][f_ind]
-            print(' -', current_file)
+            # print(' -', current_file)
             o_pts = None
             o_labels = None
             if self.set == 'validation':
@@ -395,8 +398,8 @@ class ScannetSLAMDataset(PointCloudDataset):
             # Number collected
             n = sub_pts.shape[0]
 
-            # #### Zero mean input points
-            # sub_pts = sub_pts - p0
+            #### Zero mean input points
+            sub_pts = sub_pts - p0
 
             # Randomly drop some points (augmentation process and safety for GPU memory consumption)
             # max_in_p is calibrated in training and load back in in testing
@@ -1068,7 +1071,11 @@ class ScannetSLAMSampler(Sampler):
                 _, gen_indices = torch.topk(self.dataset.potentials, num_centers, largest=False, sorted=True)
             else:
                 # means the whole dataset is finished without the necessary steps
-                gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+                if self.dataset.set == 'test':
+                    gen_indices = torch.from_numpy(np.arange(self.dataset.potentials.shape[0]))
+                else:
+                    gen_indices = torch.randperm(self.dataset.potentials.shape[0])
+            
 
             # Update potentials (Change the order for the next epoch)
             self.dataset.potentials[gen_indices] = torch.ceil(self.dataset.potentials[gen_indices])
@@ -1254,7 +1261,11 @@ class ScannetSLAMSampler(Sampler):
         if not redo and key in batch_lim_dict:
             self.dataset.batch_limit[0] = batch_lim_dict[key]
         else:
-            redo = True
+            if self.dataset.batch_num == 1:
+                batch_lim_dict[key] = 1
+                self.dataset.batch_limit[0] = 1
+            else:
+                redo = True
 
         if verbose:
             print('\nPrevious calibration found:')
@@ -1360,6 +1371,8 @@ class ScannetSLAMSampler(Sampler):
 
             for epoch in range(10):
                 for batch_i, batch in enumerate(dataloader):
+                    if len(batch.points) == 0:
+                        continue
 
                     # Control max_in_points value
                     are_cropped = batch.lengths[0] > self.dataset.max_in_p - 1
