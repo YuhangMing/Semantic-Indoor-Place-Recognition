@@ -79,6 +79,7 @@ class SemanticKittiDataset(PointCloudDataset):
             self.scenes = ['{:02d}'.format(i) for i in range(11) if i == 8]
         elif self.set == 'test':
             self.scenes = ['{:02d}'.format(i) for i in range(11, 22)]
+            # self.scenes = ['{:02d}'.format(i) for i in range(11, 22) if i == 11]
         else:
             raise ValueError('Unknown set for SemanticKitti data: ', self.set)
 
@@ -87,6 +88,8 @@ class SemanticKittiDataset(PointCloudDataset):
         for seq in self.scenes:
             velo_path = join(self.path, 'sequences', seq, 'velodyne')
             frames = np.sort([vf[:-4] for vf in listdir(velo_path) if vf.endswith('.bin')])
+            # frames = np.array([frames[7], frames[10], frames[23], frames[74], frames[200]])
+            # print('frames shape:', frames.shape)
             self.frames.append(frames)
 
         ###########################

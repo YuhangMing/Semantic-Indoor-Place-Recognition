@@ -23,6 +23,7 @@
 #
 
 # Common libs
+import enum
 import time
 from matplotlib.pyplot import subplot_tool
 import numpy as np
@@ -63,7 +64,7 @@ import open3d as o3d
 class ScannetTripleDataset(PointCloudDataset):
     """Class to handle Scannet dataset for Triple segmentation."""
 
-    def __init__(self, config, set='training', balance_classes=True, kf_step=30):
+    def __init__(self, config, set='training', balance_classes=True):
         PointCloudDataset.__init__(self, 'ScannetTriple')
 
         ##########################
@@ -81,8 +82,9 @@ class ScannetTripleDataset(PointCloudDataset):
         self.set = set
 
         # Get a list of sequences
-        data_split_path = join(self.path, "test_files")
-        # data_split_path = join(self.path, "tools/Tasks/Benchmark")
+        # data_split_path = join(self.path, "test_files")
+        data_split_path = join(self.path, "tools/Tasks/Benchmark")
+        # data_split_path = join(self.path, "Tasks/Benchmark")
         # Cloud names
         if self.set == 'training':
             scene_file_name = join(data_split_path, 'scannetv2_train.txt')
@@ -93,8 +95,9 @@ class ScannetTripleDataset(PointCloudDataset):
             # self.clouds = [self.scenes[0]]  # test
         elif self.set == 'test':
             scene_file_name = join(data_split_path, 'scannetv2_test.txt')
+            # scene_file_name = join(data_split_path, 'scannetv2_test_val.txt')
             self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
-            self.scenes = self.scenes[:11]
+            self.scenes = self.scenes
             # self.scenes = [self.scenes[0]]  # only test one scene
             print((self.scenes))
         else:
@@ -177,14 +180,13 @@ class ScannetTripleDataset(PointCloudDataset):
         #####################
         # Prepare point cloud
         #####################
-        self.intrinsics = []    # list of Ks for every scene
-        self.nframes = []       # list of nums of frames for every scene
-        self.fids = []          # list of list of frame id used to create pcd
+        # self.intrinsics = []    # list of Ks for every scene
+        # self.nframes = []       # list of nums of frames for every scene
+        self.fids = []          # list of list of actual frame id used to create pcd
         self.poses = []         # list of list of frame pose used to create pcd
         self.files = []         # list of list of pcd files created, pts in camera coordinate frame
         # training/val only
-        self.pos_thred = 2**2
-        # self.centers = []       # list of list of pcd centers in world coordinate frame
+        # self.pos_thred = 2**2
         self.posIds = []        # list of dictionary of positive pcd example ids for training
         self.negIds = []        # list of dictionary of negative pcd example ids for training
         # val/testing only
@@ -202,14 +204,19 @@ class ScannetTripleDataset(PointCloudDataset):
             self.max_in_p = config.max_val_points
             self.in_R = config.val_radius
 
-        # create sub cloud from the HD mesh w.r.t. cameras
-        self.kf_step = kf_step
-        self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
+        # load sub cloud from the HD mesh w.r.t. cameras
+        # # pcd without zero-meaning coordinates
+        # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
+        # pcd with zero-meaning coordinates
+        self.input_pcd_path = join(self.path, 'scans', 'input_pcd_0mean')
         self.prepare_point_cloud()
 
+        # get all_inds as 2D array
+        # (index of the scene, index of the frame)
         seq_inds = np.hstack([np.ones(len(_), dtype=np.int32) * i for i, _ in enumerate(self.fids)])
         frame_inds = np.hstack([np.arange(len(_), dtype=np.int32) for _ in self.fids])
-        self.all_inds = np.vstack((seq_inds, frame_inds)).T # 2D array, 1st column is index of scenes, 2nd is index of frames
+        # NOTE 2nd is the index of frames NOT the actual frame id
+        self.all_inds = np.vstack((seq_inds, frame_inds)).T 
 
 
         ##### MODIFY HERE????
@@ -315,16 +322,17 @@ class ScannetTripleDataset(PointCloudDataset):
                 # reference to pointnet_vlad: train_pointnetvlad.py
                 # current pcd index:        s_ind & f_ind;
                 # positive pcd indices:     [pos_s_inds, pos_f_inds]; default 2
-                # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 18 (4 in dh3d)
+                # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 8 (4 in dh3d)
                 # other negative pcd index: o_s_ind, o_f_ind.
 
+                # check there are enough positive pcds
                 num_pos_ids = len(self.posIds[s_ind][f_ind])
                 if num_pos_ids < 2:
                     print('Skip current pcd (', self.files[s_ind][f_ind].split('/')[-1], ') due to empty positives.')
                     return []
-                # print('Current pcd index:', s_ind, f_ind)
-                # print('Positive lists:', self.posIds[s_ind][f_ind])
-                # print('Negative lists:', self.negIds[s_ind][f_ind])
+                print('Current pcd index:', s_ind, f_ind)
+                print('Positive lists:', self.posIds[s_ind][f_ind])
+                print('Negative lists:', self.negIds[s_ind][f_ind])
 
                 # Positive pcd indices
                 # pos_s_ind = s_ind
@@ -341,31 +349,21 @@ class ScannetTripleDataset(PointCloudDataset):
                 # print(num_pos_ids, pos_s_ind, pos_f_inds)
                 
                 # Negative pcd indices
+                # choose at most one from the same scene
                 if len(self.negIds[s_ind][f_ind]) > 0:
                     neg_s_inds = [s_ind]
                 else:
                     neg_s_inds = []
-                
+                # randomly choose from other scenes
                 while len(neg_s_inds) < self.num_neg_samples:
                     tmp_neg = np.random.choice( len(self.scenes) )
                     # double check to prevent same (as anchor) scene is selected
                     if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
                         neg_s_inds.append(tmp_neg)
-                    
-                # neg_s_inds = np.random.randint(0, len(self.scenes), 4)
+                # get the (s_ind, f_ind) pairs
                 neg_f_inds = []
-                for id, neg_s in enumerate(neg_s_inds):
+                for neg_s in neg_s_inds:
                     if neg_s == s_ind:
-                        # # if no negative ids for current pcd
-                        # # generate neg id from another scene
-                        # if len(self.negIds[neg_s][f_ind]) == 0:
-                        #     tmp = np.random.randint(0, len(self.scenes))
-                        #     while tmp == s_ind:
-                        #         tmp = np.random.randint(0, len(self.scenes))
-                        #     neg_s_inds[id] = tmp
-                        #     neg_f_inds.append(np.random.randint(0, len(self.fids[tmp])))
-                        # # randomly choose one from the negative ids
-                        # else:
                         neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
                     else:
                         neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
@@ -375,15 +373,13 @@ class ScannetTripleDataset(PointCloudDataset):
                 # Other negative pcd index for quadruplet
                 # skip for now
 
-                all_indices = [ [s_ind, f_ind], [s_ind, pos_f_inds[0]], [s_ind, pos_f_inds[1]] ]
+                all_indices = [ (s_ind, f_ind), (s_ind, pos_f_inds[0]), (s_ind, pos_f_inds[1]) ]
                 for idx in range(self.num_neg_samples):
-                    all_indices.append([neg_s_inds[idx], neg_f_inds[idx]])
-                            # [neg_s_inds[0], neg_f_inds[0]], [neg_s_inds[1], neg_f_inds[1]], 
-                            # [neg_s_inds[2], neg_f_inds[2]], [neg_s_inds[3], neg_f_inds[3]]]
+                    all_indices.append( (neg_s_inds[idx], neg_f_inds[idx]) )
                 # print('All chosen indices: [query/current], [positive]*2, [negative]*4', all_indices)
             else:
                 # in testing, only get the current index
-                all_indices = [[s_ind, f_ind]]
+                all_indices = [(s_ind, f_ind)]
 
             for s_ind, f_ind in all_indices:
                 #################
@@ -392,8 +388,9 @@ class ScannetTripleDataset(PointCloudDataset):
                 #      coordinate frame
                 #################
 
+                print(s_ind, f_ind, len(self.files), len(self.files[s_ind]))
                 current_file = self.files[s_ind][f_ind]
-                # print('\nLoading: ', current_file)
+                print('Loading: ', current_file)
 
                 # data = read_ply(current_file)
                 # points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
@@ -450,8 +447,8 @@ class ScannetTripleDataset(PointCloudDataset):
                 o_pts = None
                 o_labels = None
 
-                subpcd_file = current_file[:-4]+'_sub.ply'
-                data = read_ply(subpcd_file)
+                # subpcd_file = current_file[:-4]+'_sub.ply'
+                data = read_ply(current_file)
                 sub_pts = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T # Nx3
                 # sub_pts = sub_pts.astype(np.float32)
                 if sub_pts.shape[0] < 2:
@@ -465,7 +462,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # Convert p0 to world coordinates
                 # in case of Matrix x Vector, np.dot = np.matmul
                 crnt_pose = self.poses[s_ind][f_ind]
-                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]  # already computed in self.centers?
+                p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
                 # print("\nSubsampled Cloud Info: ")
                 # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
                 # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
@@ -604,272 +601,78 @@ class ScannetTripleDataset(PointCloudDataset):
         """
 
         if not exists(self.input_pcd_path):
-            makedirs(self.input_pcd_path)
+            raise ValueError('Missing input pcd folder:', self.input_pcd_path)
         
-        print('current kf step =', self.kf_step)
-        # load pre-processed pos-neg indices
-        vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_'+self.set+'.txt')
+        # Load pre-processed pos-neg indices AND file names
+        # all tasks are stored in a single file
+        vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_pos_neg.txt')
         with open(vlad_pn_file, "rb") as f:
             # dict, key = scene string, val = list of pairs of (list pos, list neg)
-            # NOTE all ids are actual frame IDd, need to DIVIDE by 15 before using.
             all_scene_pos_neg = pickle.load(f)
+        valid_pcd_file = join(self.path, 'VLAD_triplets', 'vlad_pcd.txt')
+        with open(valid_pcd_file, "rb") as f:
+            # dict, key = scene string, val = list of filenames
+            all_scene_pcds = pickle.load(f)
 
+        # Loop through all scenes to retrieve data for current task
         for i, scene in enumerate(self.scenes):
-            ###############
-            # Sequence data
-            ###############
-            scene_folder = join(self.path, 'scans', scene)
-
-            # get num of frames and intrinsics
-            sceneNFrames, sceneK = self.parse_scene_info(join(scene_folder, scene+'.txt'))
-
-            # get depth intrinsics
-            self.intrinsics.append(sceneK)
-            self.nframes.append(sceneNFrames)
-
-            scene_pcd_path = join(self.input_pcd_path, scene)
+            num_scene_pcds = len(all_scene_pcds[scene])
+            print('scene_id_name', i, scene, 'num_of_pcds', num_scene_pcds)
             print('Processing:', scene, '(', i+1 , '/', len(self.scenes), ')') 
             # print('  from', scene_folder)
             # print('   to ', scene_pcd_path)
+            
+            # path to original ScanNet data
+            scene_folder = join(self.path, 'scans', scene)
+            # path to processed ScanNet point cloud
+            scene_pcd_path = join(self.input_pcd_path, scene)
             if not exists(scene_pcd_path):
-                # print('  Load reconstructed mesh and annotate...')
-                makedirs(scene_pcd_path)
+                raise ValueError('Missing scene folder:', scene_pcd_path)
 
-                # get the high definition point cloud
-                hd_pcd, hd_pcd_labeled = self.load_hd_pcd(scene_folder, scene)
-                b_PCD_Loaded = True
-            else:
-                b_PCD_Loaded = False
+            # get necessary data
+            scene_files = []    # list of pcd file names for current scene
+            scene_poses = []    # list of pcd poses for current scene
+            scene_fids = []     # list of actual frame id used to generate the pcd
+            all_posId = []      # list of positive pcd Indices
+            all_negId = []      # list of negative pcd Indices
+            for j, subpcd_file in enumerate(all_scene_pcds[scene]):
+                actual_frame_id = int(subpcd_file[13:-8])
+                print('{}%'.format(int(100*j/num_scene_pcds)), flush=True, end='\r')
+                frame_subpcd_file = join(scene_pcd_path, subpcd_file)
 
-            # generate point cloud every kf_step frames
-            # change to better selection with change in motions
-            intrinsics = o3d.camera.PinholeCameraIntrinsic(
-                int(self.intrinsics[-1][1]), int(self.intrinsics[-1][0]), self.intrinsics[-1][2], 
-                self.intrinsics[-1][3], self.intrinsics[-1][4], self.intrinsics[-1][5]
-                )
-            scene_files = []
-            scene_poses = []
-            scene_fids = []
-            # scene_centers = []
-            pcd_count = 0
-            all_posId = {}
-            all_negId = {}
-            for j in range(0, self.nframes[-1], self.kf_step):
-                print(100*j/self.nframes[-1], '%', flush=True, end='\r')
-                frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
-                # print(frame_pcd_file)
-                frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
-                pose = np.loadtxt(join(scene_folder, 'pose', str(j)+'.txt'))
-                # check if pose is lost
+                # get pose of current frame
+                pose = np.loadtxt(join(scene_folder, 'pose', str(actual_frame_id)+'.txt'))
+                # double check if pose is lost
                 chk_val = np.sum(pose)
                 if np.isinf(chk_val) or np.isnan(chk_val):
-                    # print('  Invalid pose for', scene, 'frame', j)
-                    continue
-                Rot = pose[:3, :3]
-                trans = pose[:3, 3]
+                    raise ValueError('Invalid pose value for', scene_folder, actual_frame_id)
 
                 # store file name info
-                scene_files.append(frame_pcd_file)
+                scene_files.append(frame_subpcd_file)
                 scene_poses.append(pose)
-                scene_fids.append(j)
+                scene_fids.append(actual_frame_id)
 
-                # 
-                all_posId[pcd_count] = all_scene_pos_neg[scene][pcd_count][0]
-                all_negId[pcd_count] = all_scene_pos_neg[scene][pcd_count][1]
-                pcd_count += 1
+                # store current pos and neg index
+                # all_posId[j] = all_scene_pos_neg[scene][j][0]
+                # all_negId[j] = all_scene_pos_neg[scene][j][1]
+                all_posId.append(all_scene_pos_neg[scene][j][0])
+                all_negId.append(all_scene_pos_neg[scene][j][1])
 
-                # store small point clouds and centers
-                if exists(frame_pcd_file) and exists(frame_subpcd_file):
-                    continue
-                    # if self.set in ['training', 'validation']:
-                    #     data = read_ply(frame_subpcd_file)
-                    #     points = np.vstack((data['x'], data['y'], data['z'])).T
-                    #     center = np.mean(points, axis=0)
-                    #     # get center in world coordinates
-                    #     scene_centers.append(np.dot(Rot, center)+trans)
-
-                else:
-                    # get current point cloud from depth image
-                    depth = o3d.io.read_image(join(scene_folder, 'depth', str(j)+'.png'))
-                    depth_pcd = o3d.geometry.PointCloud.create_from_depth_image(depth, intrinsics)
-
-                    # get bounding box from current depth frame
-                    bbox_aligned = depth_pcd.get_axis_aligned_bounding_box()
-
-                    # reload hd pcd if new sub pcd needs to be generated
-                    if not b_PCD_Loaded:
-                        hd_pcd, hd_pcd_labeled = self.load_hd_pcd(scene_folder, scene)
-                        b_PCD_Loaded = True
-
-                    # crop the original pointcloud
-                    cam_pcd = hd_pcd.transform(np.linalg.inv(pose)).crop(bbox_aligned)
-                    cam_pcd_labeled = hd_pcd_labeled.transform(np.linalg.inv(pose)).crop(bbox_aligned)
-
-                    # ## Add additional vertical rotation for testing
-                    # Rx90 = np.array([
-                    #     [1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]
-                    # ])
-                    # angle = 30*np.pi/180
-                    # Ry30 = np.array([
-                    #     [np.cos(angle), 0, np.sin(angle), 0], 
-                    #     [0, 1, 0, 0], 
-                    #     [-1 * np.sin(angle), 0, np.cos(angle), 0], 
-                    #     [0, 0, 0, 1]
-                    # ])
-                    # cam_pcd = cam_pcd.transform(Ry30)
-                    # cam_pcd_labeled = cam_pcd_labeled.transform(Ry30)
-
-                    # retrieve points, colors, and semantic labels
-                    cam_pts = np.asarray(cam_pcd.points).astype(np.float32)
-                    cam_rgb = np.asarray(cam_pcd.colors)*255.
-                    cam_rgb = cam_rgb.astype(np.uint8)
-                    cam_label = np.asarray(cam_pcd_labeled.colors)*255.
-                    cam_label = cam_label[:, 0].astype(np.int32)
-                    # Get center of the first frame in camera coordinates
-                    p0 = np.mean(cam_pts, axis=0)      # mean in column direction
-                    # print('\nFrame ', j)
-                    # print(frame_pcd_file) 
-                    # print(frame_subpcd_file)
-                    # print(pose)
-                    # print("Original Cloud Info: ")
-                    # print('points:', cam_pts.shape, type(cam_pts[0,0]))
-                    # print('colors:', cam_rgb.shape, type(cam_rgb[0,0]))
-                    # print('labels:', cam_label.shape, type(cam_label[0]))
-                    # print('center:', p0.shape, type(p0[0]), p0)
-
-                    ## Every frame point cloud is process only once 
-                    ## using a sphere with in_radius around the center of the input point cloud 
-                    # Eliminate points further than config.in_radius
-                    mask = np.sum(np.square(cam_pts - p0), axis=1) < self.in_R ** 2
-                    mask_inds = np.where(mask)[0].astype(np.int32)  # get row index of Trues or 1s
-                    cam_pts = cam_pts[mask_inds, :]
-                    cam_rgb = cam_rgb[mask_inds, :]
-                    cam_label = cam_label[mask_inds]
-                    # print("Inliers Info: ")
-                    # print('points:', cam_pts.shape, type(cam_pts[0,0]))
-                    # print('colors:', cam_rgb.shape, type(cam_rgb[0,0]))
-                    # print('labels:', cam_label.shape, type(cam_label[0]))
-                    # print('center:', p0.shape, type(p0[0]), p0)
-
-                    # save as ply
-                    write_ply(frame_pcd_file,
-                            (cam_pts.astype(np.float32), cam_rgb.astype(np.uint8), cam_label.astype(np.int32)), 
-                            ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
-
-                    # voxel grid downsample the point cloud
-                    sub_pts, sub_rgb, sub_lbls = grid_subsampling(cam_pts.astype(np.float32),
-                                                                features=cam_rgb.astype(np.float32),
-                                                                labels=cam_label.astype(np.int32),
-                                                                sampleDl=self.config.first_subsampling_dl)
-                    # print("Subsampled Cloud Info: ")
-                    # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
-                    # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
-                    # print('labels:', sub_lbls.shape, type(sub_lbls[0,0]))
-                    # p0 = np.mean(sub_pts, axis=0)
-                    # print('center:', p0.shape, type(p0[0]), p0)
-
-                    # save as ply
-                    write_ply(frame_subpcd_file,
-                            (sub_pts.astype(np.float32), sub_rgb.astype(np.uint8), sub_lbls.astype(np.int32)), 
-                            ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
-
-
-                    # if self.set in ['training', 'validation']:
-                    #     # center = np.mean(cam_pts, axis=0)
-                    #     center = np.mean(sub_pts, axis=0)
-                    #     # get center in world coordinates
-                    #     scene_centers.append(np.dot(Rot, center)+trans)
-
-                    # transform back for next frame
-                    hd_pcd.transform(pose)
-                    hd_pcd_labeled.transform(pose)
+                # double check if the point cloud file exists
+                if not exists(frame_subpcd_file):
+                    raise ValueError('Missing subpcd file:', frame_subpcd_file)
             print('100 %')
+
             self.files.append(scene_files)
             self.poses.append(scene_poses)
             self.fids.append(scene_fids)
             if self.set in ['training', 'validation']:
-                # all_posId = {}
-                # all_negId = {}
-                # for p, cntr in enumerate(scene_centers):
-                #     single_posId = []
-                #     single_negId = []
-                #     for q, cntr2 in enumerate(scene_centers):
-                #         if q == p:
-                #             continue
-                #         dist2 = np.sum((cntr - cntr2)**2)
-                #         # print(dist2)
-                #         if dist2 < self.pos_thred:
-                #             single_posId.append(q)
-                #             # print(p, q, dist2)
-                #         else:
-                #             single_negId.append(q)
-                #     all_posId[p] = single_posId
-                #     all_negId[p] = single_negId
                 self.posIds.append(all_posId)
                 self.negIds.append(all_negId)
-                # self.centers.append(scene_centers)
-
-            # print(self.centers)
             # print(self.posIds)
 
         if self.set in ['training', 'validation']:
             self.class_proportions = np.ones((self.num_classes,), dtype=np.int32)
-
-        # # Add variables for validation
-        # if self.set == 'validation':
-        #     self.val_points = []
-        #     self.val_labels = []
-        #     self.val_confs = []
-        #     for s_ind, seq_frames in enumerate(self.files):
-        #         self.val_confs.append(np.zeros((len(seq_frames), self.num_classes, self.num_classes)))
-    
-    def load_hd_pcd(self, scene_folder, scene):
-        # Mapping from annot to NYU labels ID
-        if self.set in ['training', 'validation']:
-            label_files = join(self.path, 'scannetv2-labels.combined.tsv')
-            with open(label_files, 'r') as f:
-                lines = f.readlines()
-                names1 = [line.split('\t')[1] for line in lines[1:]]
-                IDs = [int(line.split('\t')[4]) for line in lines[1:]]
-                annot_to_nyuID = {n: id for n, id in zip(names1, IDs)}
-
-        hd_pcd = o3d.io.read_point_cloud(join(scene_folder, scene + '_vh_clean.ply'))
-        ## In o3d.geometry.PointCloud
-        ## colors:  float64 array of shape (num_points, 3), range [0, 1], use numpy.asarray() to access data
-        ## normals: float64 array of shape (num_points, 3), use numpy.asarray() to access data
-        ## points:  float64 array of shape (num_points, 3), use numpy.asarray() to access data
-
-        # hd_pts = np.asarray(hd_pcd.points)
-        hd_rgb = np.asarray(hd_pcd.colors)
-
-        # assign NYU2 labels to the hd_pcd
-        hd_labels = np.zeros(hd_rgb.shape, dtype=np.float64)
-        if self.set in ['training', 'validation']:
-            # get objects segmentations
-            # a dictionary of 'params', 'sceneId', 'segIndices'
-            with open(join(scene_folder, scene + '_vh_clean.segs.json'), 'r') as f:
-                segmentations = json.load(f)
-            segIndices = np.array(segmentations['segIndices'])
-            # get objects classes
-            # a dictionary of 'sceneId', 'appId', 'segGroups', 'segmentsFile'.
-            # segGroup is a list of dictionaries, each dict contains 'id', 'objId', 'segments', 'label', 
-            # where 'segments' is a list of indices of the over-segments, and 'label' is the object label
-            with open(join(scene_folder, scene + '_vh_clean.aggregation.json'), 'r') as f:
-                aggregation = json.load(f)
-            # loop on object to classify points
-            for segGroup in aggregation['segGroups']:
-                c_name = segGroup['label']
-                if c_name in names1:
-                    nyuID = annot_to_nyuID[c_name]
-                    if nyuID in self.label_values:
-                        for segment in segGroup['segments']:
-                            # stored as colors in the o3d.PointCloud
-                            hd_labels[segIndices == segment, :] = np.array([nyuID, nyuID, nyuID])/255.
-        hd_pcd_labeled = o3d.geometry.PointCloud()
-        hd_pcd_labeled.points = hd_pcd.points
-        hd_pcd_labeled.colors = o3d.utility.Vector3dVector(hd_labels)
-
-        return hd_pcd, hd_pcd_labeled
 
     def parse_scene_info(self, filename):
         """ read information file with given filename

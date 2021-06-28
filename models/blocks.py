@@ -454,12 +454,17 @@ class BatchNormBlock(nn.Module):
 
     def forward(self, x):
         if self.use_bn:
-
+            # print('in batch norm, x shape =', x.size())
             x = x.unsqueeze(2)
+            # print('               x shape =', x.size())
             x = x.transpose(0, 2)
+            # print('               x shape =', x.size())
             x = self.batch_norm(x)
             x = x.transpose(0, 2)
-            return x.squeeze()
+            # print('               x shape =', x.size())
+            # sovle the bug happen when only one pt in the pcd
+            # return x.squeeze()
+            return torch.squeeze(x, 2)
         else:
             return x + self.bias
 
@@ -493,7 +498,7 @@ class UnaryBlock(nn.Module):
         return
 
     def forward(self, x, batch=None):
-        # print('inside unary block: ', x.size())
+        # print('in unary block: ', x.size(), self.in_dim, self.out_dim)
         x = self.mlp(x)
         # if no batch normalisation, simply add a bias here.
         x = self.batch_norm(x)

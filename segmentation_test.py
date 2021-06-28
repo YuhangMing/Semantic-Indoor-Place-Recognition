@@ -15,6 +15,7 @@
 #
 
 # Common libs
+from operator import imod
 import signal
 import os
 import numpy as np
@@ -32,6 +33,7 @@ from datasets.Scannet import *
 from datasets.SinglePLY import *
 # SLAM segmentation
 from datasets.ScannetSLAM import *
+from datasets.SemanticKitti import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -103,10 +105,13 @@ if __name__ == '__main__':
     # chosen_log = 'last_S3DIS'
     # chosen_log = 'results/Log_2021-04-19_10-01-23'  # => S3DIS, batch 4, 1st feat 64, 0.04-2.0
     # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
-    chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
-    
+    # chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), batch 8, 1st feat 64, 0.04-2.0, without color
+    chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), batch 8, 1st feat 64, 0.04-2.0, with color
+    # chosen_log = 'results/Log_2021-06-11_02-47-11'  # => SemanticKitti (full), deformed kernel
+    # chosen_log = 'results/Log_2021-06-11_04-20-14'  # => SemanticKitti (full), rigid kernel
+        
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = None
+    chkp_idx = 4
 
     # Deal with 'last_XXXXXX' choices
     chosen_log = model_choice(chosen_log)
@@ -149,18 +154,15 @@ if __name__ == '__main__':
     #config.augment_noise = 0.0001
     #config.augment_symmetries = False
     config.batch_num = 1
+    config.val_batch_num = 1
     #config.in_radius = 4
-    config.validation_size = 50    # decide how many points will be covered in prediction
+    config.validation_size = 60    # decide how many points will be covered in prediction
     config.input_threads = 0
     config.print_current()
 
     ##############
     # Prepare Data
     ##############
-
-    set = 'visualise'
-    # data = 'S3DIS'
-    data = '7Scenes'
 
     print()
     print('Data Preparation')
@@ -184,6 +186,11 @@ if __name__ == '__main__':
     test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
     test_sampler = ScannetSLAMSampler(test_dataset)
     collate_fn = ScannetSLAMCollate
+    # #### SemanticKitti
+    # test_dataset = SemanticKittiDataset(config, set='test', balance_classes=False)
+    # test_sampler = SemanticKittiSampler(test_dataset)
+    # collate_fn=SemanticKittiCollate
+
     print(test_dataset.label_values)
     print(test_dataset.ignored_labels)
     

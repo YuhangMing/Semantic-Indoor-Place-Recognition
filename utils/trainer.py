@@ -1105,7 +1105,7 @@ class RecogModelTrainer:
                         # for layer in range(5):
                         #     print(val[layer].size())
                         # print(val) # on cuda:0
-                        descrip = net(val, config.num_feat)
+                        descrip = net(val)
                         # print('descriptor: ', descrip.size())
                         # print(descrip)
                         vlad_desp.append(descrip)

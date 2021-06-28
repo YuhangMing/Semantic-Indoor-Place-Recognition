@@ -80,8 +80,8 @@ class ScannetSLAMDataset(PointCloudDataset):
         self.set = set
 
         # Get a list of sequences
-        data_split_path = join(self.path, "test_files")
-        # data_split_path = join(self.path, "Tasks/Benchmark")
+        # data_split_path = join(self.path, "test_files")
+        data_split_path = join(self.path, "tools/Tasks/Benchmark")
         # Cloud names
         if self.set == 'training':
             scene_file_name = join(data_split_path, 'scannetv2_train.txt')
@@ -395,6 +395,9 @@ class ScannetSLAMDataset(PointCloudDataset):
             # Number collected
             n = sub_pts.shape[0]
 
+            # #### Zero mean input points
+            # sub_pts = sub_pts - p0
+
             # Randomly drop some points (augmentation process and safety for GPU memory consumption)
             # max_in_p is calibrated in training and load back in in testing
             # print('max_in_p:', self.max_in_p)
@@ -599,7 +602,7 @@ class ScannetSLAMDataset(PointCloudDataset):
             scene_files = []
             scene_poses = []
             scene_fids = []
-            for j in range(0, self.nframes[-1], 100):
+            for j in range(0, self.nframes[-1], 15):
                 frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
                 frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
                 pose = np.loadtxt(join(scene_folder, 'pose', str(j)+'.txt'))
@@ -612,7 +615,8 @@ class ScannetSLAMDataset(PointCloudDataset):
                 scene_files.append(frame_pcd_file)
                 scene_poses.append(pose)
                 scene_fids.append(j)
-                if exists(frame_pcd_file) and exists(frame_subpcd_file):
+                # if exists(frame_pcd_file) and exists(frame_subpcd_file):
+                if exists(frame_subpcd_file):
                     continue
                 
                 # get current point cloud from depth image
@@ -657,10 +661,10 @@ class ScannetSLAMDataset(PointCloudDataset):
                 # print('    ', type(cam_pts[0,0]), type(cam_rgb[0,0]), type(cam_label[0]))
                 # print('    ', np.min(cam_rgb), np.max(cam_rgb))
 
-                # save as ply
-                write_ply(frame_pcd_file,
-                          (cam_pts, cam_rgb, cam_label), 
-                          ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
+                # # save as ply
+                # write_ply(frame_pcd_file,
+                #           (cam_pts, cam_rgb, cam_label), 
+                #           ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
                 
                 ## Every frame point cloud is process only once 
                 ## using a sphere with in_radius around the center of the input point cloud 

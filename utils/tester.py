@@ -940,33 +940,60 @@ class ModelTester:
                     f_ind = f_inds[b_i, 1]
 
                     # Project predictions on the frame points
-                    proj_probs = probs[proj_inds]
+                    # print(probs)
+                    # print(proj_inds)
+                    # print(proj_mask)
+                    if test_loader.dataset.name == 'SemanticKitti':
+                        proj_probs = probs[proj_inds]
+                    elif test_loader.dataset.name == 'ScannetSLAM':
+                        proj_probs = probs
+                    else:
+                        raise ValueError('Unknown dataset', test_loader.dataset.name)
 
                     # Safe check if only one point:
                     if proj_probs.ndim < 2:
                         proj_probs = np.expand_dims(proj_probs, 0)
 
                     # Save probs in a binary file (uint8 format for lighter weight)
-                    seq_name = test_loader.dataset.scenes[s_ind]
                     if test_loader.dataset.set == 'validation':
                         folder = 'val_probs'
                         pred_folder = 'val_predictions'
                     else:
                         folder = 'probs'
                         pred_folder = 'predictions'
-                    ori_file = test_loader.dataset.files[s_ind][f_ind].split('/')[-1]
-                    # filename = '{:s}_{:07d}.npy'.format(seq_name, f_ind)
-                    filename = ori_file[:-4]+'.npy'
+                    
+                    if test_loader.dataset.name == 'SemanticKitti':
+                        seq_name = test_loader.dataset.scenes[s_ind]
+                        filename = '{:s}_{:07d}.npy'.format(seq_name, f_ind)
+                    elif test_loader.dataset.name == 'ScannetSLAM':
+                        ori_file = test_loader.dataset.files[s_ind][f_ind].split('/')[-1]
+                        filename = ori_file[:-4]+'.npy'
+                    else:
+                        raise ValueError('Unknown dataset', test_loader.dataset.name)
+                    
                     filepath = join(test_path, folder, filename)
                     # print('filename', filename)
                     # print('filepath', filepath)
                     if exists(filepath):
                         frame_probs_uint8 = np.load(filepath)
                     else:
-                        frame_probs_uint8 = np.zeros((proj_mask.shape[0], nc_model), dtype=np.uint8)
-                    frame_probs = frame_probs_uint8[proj_mask, :].astype(np.float32) / 255
-                    frame_probs = test_smooth * frame_probs + (1 - test_smooth) * proj_probs
-                    frame_probs_uint8[proj_mask, :] = (frame_probs * 255).astype(np.uint8)
+                        if test_loader.dataset.name == 'SemanticKitti':
+                            frame_probs_uint8 = np.zeros((proj_mask.shape[0], nc_model), dtype=np.uint8)
+                        elif test_loader.dataset.name == 'ScannetSLAM':
+                            frame_probs_uint8 = np.zeros((proj_probs.shape[0], nc_model), dtype=np.uint8)
+                        else:
+                            raise ValueError('Unknown dataset', test_loader.dataset.name)
+                    
+                    if test_loader.dataset.name == 'SemanticKitti':
+                        frame_probs = frame_probs_uint8[proj_mask, :].astype(np.float32) / 255
+                        frame_probs = test_smooth * frame_probs + (1 - test_smooth) * proj_probs
+                        frame_probs_uint8[proj_mask, :] = (frame_probs * 255).astype(np.uint8)
+                    elif test_loader.dataset.name == 'ScannetSLAM':
+                        frame_probs = frame_probs_uint8.astype(np.float32) / 255
+                        frame_probs = test_smooth * frame_probs + (1 - test_smooth) * proj_probs
+                        frame_probs_uint8 = (frame_probs * 255).astype(np.uint8)
+                    else:
+                        raise ValueError('Unknown dataset', test_loader.dataset.name)
                     np.save(filepath, frame_probs_uint8)
 
                     # Save some prediction in ply format for visual
@@ -984,13 +1011,19 @@ class ModelTester:
 
                         # Save some of the frame pots
                         if f_ind % 20 == 0:
-                            # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            # velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            # frame_points = np.fromfile(velo_file, dtype=np.float32)
-                            # frame_points = frame_points.reshape((-1, 4))
-
-                            data = read_ply(test_loader.dataset.files[s_ind][f_ind])
-                            frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+                            if test_loader.dataset.name == 'SemanticKitti':
+                                seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.scenes[s_ind])
+                                velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                                frame_points = np.fromfile(velo_file, dtype=np.float32)
+                                frame_points = frame_points.reshape((-1, 4))
+                            elif test_loader.dataset.name == 'ScannetSLAM':
+                                file_name = test_loader.dataset.files[s_ind][f_ind]
+                                if not 'sub' in file_name:
+                                    file_name = file_name[:-4]+'_sub.ply'
+                                data = read_ply(file_name)
+                                frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+                            else:
+                                raise ValueError('Unknown dataset', test_loader.dataset.name)
 
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
@@ -1032,13 +1065,19 @@ class ModelTester:
                                                                                      axis=1)].astype(np.int32)
 
                             # Load points
-                            # seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.sequences[s_ind])
-                            # velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
-                            # frame_points = np.fromfile(velo_file, dtype=np.float32)
-                            # frame_points = frame_points.reshape((-1, 4))
-
-                            data = read_ply(test_loader.dataset.files[s_ind][f_ind])
-                            frame_points = np.vstack((data['x'], data['y'], data['z'])).T 
+                            if test_loader.dataset.name == 'SemanticKitti':
+                                seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.scenes[s_ind])
+                                velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
+                                frame_points = np.fromfile(velo_file, dtype=np.float32)
+                                frame_points = frame_points.reshape((-1, 4))
+                            elif test_loader.dataset.name == 'ScannetSLAM':
+                                file_name = test_loader.dataset.files[s_ind][f_ind]
+                                if not 'sub' in file_name:
+                                    file_name = file_name[:-4]+'_sub.ply'
+                                data = read_ply(file_name)
+                                frame_points = np.vstack((data['x'], data['y'], data['z'])).T
+                            else:
+                                raise ValueError('Unknown dataset', test_loader.dataset.name)
 
                             predpath = join(test_path, pred_folder, filename[:-4] + '.ply')
                             # print('predpath', predpath)
@@ -1164,6 +1203,8 @@ class ModelTester:
         """
         Method to return only inter-blocks features for slam segmentation models
         """
+
+        ## NOT CALLED !!!
 
         ############
         # Initialize
