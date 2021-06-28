@@ -280,9 +280,9 @@ if __name__ == '__main__':
         t = time.time()
         if FLAGS.optimiser in ['adam', 'Adam', 'ADAM']:
             if FLAGS.num_feat == 3:
-                chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset, current at e15
+                chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset, current at e24
             elif FLAGS.num_feat == 5:
-                chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e30
+                chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e41
             else:
                 raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
         elif FLAGS.optimiser in ['sgd', 'Sgd', 'SGD']:

@@ -227,43 +227,44 @@ if __name__ == '__main__':
     # plt.show()
 
 
-    #### plot loss ####
-    Log_folders = ['Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_12-56-15']
-    Log_legends = ['SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'Adam, 5_feat, 6_neg, full epoch']
-    Log_colors = ['r', 'g', 'b', 'y', 'c']
-    avg_step = 5000
-    all_x = []
-    all_y = []
-    for i, folder in enumerate(Log_folders):
-        steps = []
-        loss = []
-        count = 1
-        with open('results/'+folder+'/training.txt') as f:
-            lines = f.readlines()
-            tmp = 0
-            for line in lines:
-                line = line.rstrip().split(' ')
-                epoch = int(line[0][1:4])
-                # one_loss = float(line[1][5:])
-                # one_loss = float(line[1][2:-1])
-                one_loss = float(line[1][2:])
-                tmp += one_loss
-                if count % avg_step ==0:
-                    steps.append(count/avg_step)
-                    loss.append(tmp/avg_step)
-                    tmp = 0
-                count += 1
-        x = np.array(steps)
-        y = np.array(loss)
-        print(np.max(y))
+    # #### plot loss ####
+    # Log_folders = ['Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_12-56-15']
+    # Log_legends = ['SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'Adam, 5_feat, 6_neg, full epoch']
+    # Log_colors = ['r', 'g', 'b', 'y', 'c']
+    # avg_step = 5000
+    # all_x = []
+    # all_y = []
+    # for i, folder in enumerate(Log_folders):
+    #     steps = []
+    #     loss = []
+    #     count = 1
+    #     with open('results/'+folder+'/training.txt') as f:
+    #         lines = f.readlines()
+    #         tmp = 0
+    #         for line in lines:
+    #             line = line.rstrip().split(' ')
+    #             epoch = int(line[0][1:4])
+    #             # one_loss = float(line[1][5:])
+    #             # one_loss = float(line[1][2:-1])
+    #             one_loss = float(line[1][2:])
+    #             tmp += one_loss
+    #             if count % avg_step ==0:
+    #                 steps.append(count/avg_step)
+    #                 loss.append(tmp/avg_step)
+    #                 tmp = 0
+    #             count += 1
+    #     x = np.array(steps)
+    #     y = np.array(loss)
+    #     print(np.max(y))
 
-        plt.plot(x, y, Log_colors[i], label=Log_legends[i])
-    plt.legend()
-    plt.title('Loss per epoch')
-    plt.xlabel('Epoches')
-    plt.xlim([0, 50])
-    plt.ylabel('Triplet Loss')
-    plt.show()
+    #     plt.plot(x, y, Log_colors[i], label=Log_legends[i])
+    # plt.legend()
+    # plt.title('Loss per epoch')
+    # plt.xlabel('Epoches')
+    # plt.xlim([0, 50])
+    # plt.ylabel('Triplet Loss')
+    # plt.show()
+
 
     # #### voxel grid downsample ####
     # pcd_name = 'scene0000_00_3900'
@@ -282,6 +283,7 @@ if __name__ == '__main__':
     #         (sub_pts.astype(np.float32), sub_rgb.astype(np.uint8), sub_lbls.astype(np.int32)), 
     #         ['x', 'y', 'z', 'red', 'green', 'blue', 'class'])
 
+
     # #### File Manipulation ####
     # scannet_pcd_path = '/media/yohann/Datasets/datasets/ScanNet/scans/input_pcd'
     # for scene in os.listdir(scannet_pcd_path):
@@ -299,27 +301,32 @@ if __name__ == '__main__':
     #                         os.mkdir(scene_ori_pcd_path)
     #                     shutil.move(os.path.join(scene_pcd_path, pcd_file), scene_ori_pcd_path)
 
-    # #### Batch/Neighbor limit check ####
-    # paths = ['/media/yohann/Datasets/datasets', '/media/yohann/Datasets/datasets/ScanNet']
-    # for path in paths:
-    #     print(path)
-    #     # Load batch_limit dictionary
-    #     batch_lim_file = os.path.join(path, 'batch_limits.pkl')
-    #     if os.path.exists(batch_lim_file):
-    #         with open(batch_lim_file, 'rb') as file:
-    #             batch_lim_dict = pickle.load(file)
-    #     else:
-    #         batch_lim_dict = {}
-    #     print(batch_lim_dict)
 
-    #     # Load neighb_limits dictionary
-    #     neighb_lim_file = os.path.join(path, 'neighbors_limits.pkl')
-    #     if os.path.exists(neighb_lim_file):
-    #         with open(neighb_lim_file, 'rb') as file:
-    #             neighb_lim_dict = pickle.load(file)
-    #     else:
-    #         neighb_lim_dict = {}
-    #     print(neighb_lim_dict)
+    #### Batch/Neighbor limit check ####
+    paths = ['/media/yohann/Datasets/datasets', '/media/yohann/Datasets/datasets/ScanNet']
+    for path in paths:
+        print(path)
+        # Load batch_limit dictionary
+        batch_lim_file = os.path.join(path, 'batch_limits.pkl')
+        if os.path.exists(batch_lim_file):
+            with open(batch_lim_file, 'rb') as file:
+                batch_lim_dict = pickle.load(file)
+        else:
+            batch_lim_dict = {}
+        for key, val in batch_lim_dict.items():
+            print(key, ':', val)
+
+        # Load neighb_limits dictionary
+        neighb_lim_file = os.path.join(path, 'neighbors_limits.pkl')
+        if os.path.exists(neighb_lim_file):
+            with open(neighb_lim_file, 'rb') as file:
+                neighb_lim_dict = pickle.load(file)
+        else:
+            neighb_lim_dict = {}
+        for key, val in neighb_lim_dict.items():
+            print(key, ':', val)
+        print('')
+
 
     # #### Point cloud io ####
     # # path = '/home/yohann/Documents/PontnetVLAD-data-test'
