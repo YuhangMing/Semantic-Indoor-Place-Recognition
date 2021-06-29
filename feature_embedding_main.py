@@ -182,6 +182,8 @@ if __name__ == '__main__':
         # update parameters for recog training
         config.num_feat = FLAGS.num_feat
         config.optimiser = FLAGS.optimiser
+        config.max_in_points = 9000
+        config.max_val_points = 9000
         config.num_neg_samples = 8
         config.batch_num = 1
         config.val_batch_num = 1
@@ -194,14 +196,15 @@ if __name__ == '__main__':
         config.weight_decay = 1e-3
         if config.saving:
             config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
-        print('Updated max_epoch / epoch_steps =', config.max_epoch, '/', config.epoch_steps)
+        print('Updated max_in_p = ', config.max_in_points, config.max_val_points)
+        print('        num neg samples =', config.num_neg_samples)
+        print('        max_epoch / epoch_steps =', config.max_epoch, '/', config.epoch_steps)
         print('        checkpoint_gap =', config.checkpoint_gap)
         print('        batch_num train / val =', config.batch_num, '/', config.val_batch_num)
         print('        learning_rate =', config.learning_rate)
         print('        lr_decays =', config.lr_decays)
         print('        weight_decay =', config.weight_decay)
         print('        saving_path =', config.saving_path)
-        print('        num neg samples =', config.num_neg_samples)
 
         print('\nData Preparation')
         print('****************')

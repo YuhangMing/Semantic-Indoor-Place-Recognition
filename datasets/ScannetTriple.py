@@ -347,6 +347,7 @@ class ScannetTripleDataset(PointCloudDataset):
                         break
                 pos_f_inds = np.array(pos_f_inds)
                 # print(num_pos_ids, pos_s_ind, pos_f_inds)
+                all_indices = [ (s_ind, f_ind), (s_ind, pos_f_inds[0]), (s_ind, pos_f_inds[1]) ]
                 
                 # Negative pcd indices
                 # choose at most one from the same scene
@@ -369,13 +370,25 @@ class ScannetTripleDataset(PointCloudDataset):
                         neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
                 neg_f_inds = np.array(neg_f_inds)
                 # print(neg_s_inds, neg_f_inds)
-
-                # Other negative pcd index for quadruplet
-                # skip for now
-
-                all_indices = [ (s_ind, f_ind), (s_ind, pos_f_inds[0]), (s_ind, pos_f_inds[1]) ]
                 for idx in range(self.num_neg_samples):
                     all_indices.append( (neg_s_inds[idx], neg_f_inds[idx]) )
+                
+                # Other negative pcd index for quadruplet
+                # find a pcd that is negative to all anchor, positives, and negatives
+                neg_star_s_ind = -1
+                while neg_star_s_ind < 0:
+                    tmp_neg = np.random.choice( len(self.scenes) )
+                    bMatched = False
+                    if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
+                        bMatched = True
+                    for neg_s_ind in neg_s_inds:
+                        if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
+                            bMatched = True
+                            break
+                    if not bMatched:
+                        neg_star_s_ind = tmp_neg
+                neg_star_f_ind = np.random.randint(0, len(self.fids[neg_star_s_ind]))
+                all_indices.append( (neg_star_s_ind, neg_star_f_ind) )
                 # print('All chosen indices: [query/current], [positive]*2, [negative]*4', all_indices)
             else:
                 # in testing, only get the current index

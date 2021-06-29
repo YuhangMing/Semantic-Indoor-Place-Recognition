@@ -1076,6 +1076,9 @@ class RecogModelTrainer:
                     feat_vecs['negative'].append([])
                     feat_keys.append('negative')
                     feats_idx.append(idx)
+                feat_vecs['negative_star'] = [[]]
+                feat_keys.append('negative_star')
+                feats_idx.append(0)
                 # print('\n  ', len(inter_en_feat), 'intermediate features stored, size and length shown below:')
                 for m, feat in enumerate(inter_en_feat):
                     # feat = feat.to(torch.device("cpu"))
@@ -1112,7 +1115,10 @@ class RecogModelTrainer:
 
                 t += [time.time()]
 
-                loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:])
+                # # TripletLoss
+                # loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1])
+                # # LazyQuadrupletLoss
+                loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1], vlad_desp[-1])
                 # acc = net.accuracy(outputs, batch.labels)
 
                 t += [time.time()]

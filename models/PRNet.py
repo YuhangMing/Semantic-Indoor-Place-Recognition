@@ -14,6 +14,7 @@
 #      Yuhang Ming
 #
 
+from multiprocessing import Value
 from models.blocks import *
 import numpy as np
 import torch
@@ -53,11 +54,12 @@ class PRNet(nn.Module):
                                   cluster_size=cluster_size, output_dim=output_dim, 
                                   gating=False, add_batch_norm=False)
 
-        # Network Losses
-        # Note: only difference between Torch built-in triplet loss and TF version PNV author's triplet loss
-        # is Torch use mean for reduction by default, while TF uses sum
-        # change Torch to use sum reduction by adding reduction='sum' 
-        self.criterion = torch.nn.TripletMarginLoss(margin=1.0, p=2.0)
+        # # Network Losses
+        # #### Triplet Loss
+        # # Note: only difference between Torch built-in triplet loss and TF version PNV author's triplet loss
+        # # is Torch use mean for reduction by default, while TF uses sum
+        # # change Torch to use sum reduction by adding reduction='sum' 
+        # self.criterion = torch.nn.TripletMarginLoss(margin=1.0, p=2.0)
 
 
     def forward(self, feat_vec):
@@ -93,30 +95,56 @@ class PRNet(nn.Module):
 
         return x
     
-    def loss(self, a, p, n):
+    def loss(self, a, p, n, n_star=None):
         # a: single tensor
         # p: list of 2 tensors
         # n: list of 18 tensors
+        # n_star: single tensor
         
-        # First try: TripletLoss
         # cat to meet tripletloss input requirement
         n_neg_samples = self.num_neg_samples
         anc = torch.cat(2*n_neg_samples*[a], dim=0)
+        # [pos0, ..., pos0, pos1, ..., pos1]
         pos0 = torch.cat(n_neg_samples*[p[0]], dim=0)
         pos1 = torch.cat(n_neg_samples*[p[1]], dim=0)
         pos = torch.cat( (pos0, pos1), dim=0 )
-        # pos = torch.cat((p[0],p[0],p[0],p[0],
-        #                  p[1],p[1],p[1],p[1]), dim=0)
+        # [neg0, ... neg8, neg0, ..., neg8]
         neg = n[0]
         for nIdx in range(1, n_neg_samples):
             neg = torch.cat( (neg, n[nIdx]), dim=0)
         neg = torch.cat( (neg, neg), dim=0 )
-        # neg = torch.cat((n[0],n[1],n[2],n[3],
-        #                  n[0],n[1],n[2],n[3]), dim=0)
-        # compute loss
-        loss = self.criterion(anc, pos, neg)
+        if not n_star is None:
+            neg_star = torch.cat(2*n_neg_samples*[n_star], dim=0)
         
+        # # Triplet Loss
+        # loss = self.criterion(anc, pos, neg)
+        # Quadruplet Loss
+        loss = self.LazyQuadrupletLoss(anc, pos, neg, neg_star)
+
         return loss
+
+    def LazyQuadrupletLoss(self, anc, pos, neg, neg_star, p=2.0, alpha=0.5, beta=0.2):
+        # implementation of lazy quadruplet loss 
+        # proposed in the PointNetVLAD
+        if anc.size() != pos.size() or anc.size() != neg.size() or anc.size() != neg_star.size():
+            raise ValueError('Size of input tensors should match!!', anc.size(), pos.size(), neg.size(), neg_star.size())
+
+        # get distance values
+        delta_pos = torch.cdist(anc, pos, p=p)
+        delta_neg = torch.cdist(pos, neg, p=p)
+        delta_neg_star = torch.cdist(neg_star, neg, p=p)
+        zeros = torch.zeros(delta_pos.size())
+        bCUDA = delta_pos.get_device()
+        if bCUDA >= 0 and torch.cuda.is_available():
+            zeros = zeros.to(torch.device(bCUDA))
+
+        # get the loss value
+        first_term = torch.max( torch.max(zeros, delta_pos + alpha - delta_neg) )
+        second_term = torch.max( torch.max(zeros, delta_pos + beta - delta_neg_star) )
+        loss = first_term + second_term
+
+        return loss
+
     # def accuracy(outputs):
 
 
@@ -126,7 +154,7 @@ class NetVLAD(nn.Module):
                  gating=True, add_batch_norm=True):
         super(NetVLAD, self).__init__()
         self.feature_size = feature_size
-        self.max_samples = max_samples
+        # self.max_samples = max_samples
         self.output_dim = output_dim
         self.gating = gating
         self.add_batch_norm = add_batch_norm
