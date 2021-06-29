@@ -36,3 +36,13 @@ Evaluation Results
  - Top 1 precision = 0.5362543335546213
  - Top 2 precision = 0.6484472965995427
  - Top 3 precision = 0.711514346831895
+ 
+ 
+ 
+chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 30, 5000 steps, full dataset
+Evaluation Results 
+    with 399 stored pcd 3209 test pcd 
+    with distance threshold 2.0
+ - Top 1 precision = 0.5123091305702712
+ - Top 2 precision = 0.6484886257401059
+ - Top 3 precision = 0.7142411966344656
