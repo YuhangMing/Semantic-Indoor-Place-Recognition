@@ -75,13 +75,13 @@ class PRNet(nn.Module):
         x_4 = self.FC_4(feat_vec[3])
         x_5 = feat_vec[4]
         if self.num_feat == 5:
-            print('using all 5 block features')
+            # print('using all 5 block features')
             x_1 = self.FC_1(feat_vec[0])
             x_2 = self.FC_2(feat_vec[1])
             # (N1+N2+N3+N4+N5 = N, 1024) [1, 11667, 1024]
             x = torch.cat((x_1, x_2, x_3, x_4, x_5), 0)
         elif self.num_feat == 3:
-            print('using last 3 block features')
+            # print('using last 3 block features')
             x = torch.cat((x_3, x_4, x_5), 0)
         else:
             raise ValueError('unsupport feature number')
@@ -96,6 +96,12 @@ class PRNet(nn.Module):
         return x
     
     def loss(self, a, p, n, n_star=None):
+        # ## test with self implemented triplet loss
+        # loss, _ = self.TripletLoss(a, p, n)
+        ## test with self implemented lazy quadruptet loss
+        loss = self.LazyQuadrupletLoss(a, p, n, n_star)
+        return loss
+
         # a: single tensor
         # p: list of 2 tensors
         # n: list of 18 tensors
@@ -126,6 +132,30 @@ class PRNet(nn.Module):
     def LazyQuadrupletLoss(self, anc, pos, neg, neg_star, p=2.0, alpha=0.5, beta=0.2):
         # implementation of lazy quadruplet loss 
         # proposed in the PointNetVLAD
+        
+        # first is just a lazy triplet loss
+        triplet_loss, best_pos = self.TripletLoss(anc, pos, neg, p=p, margin=alpha, lazy=True)
+
+        # compute the second loss
+        # compute p_distance
+        neg_star = torch.cat(self.num_neg_samples * [neg_star], dim=0)
+        neg = torch.cat(neg, dim=0)
+        delta_neg = self.p_distance(anc, neg, p=p)
+        # margined difference
+        diff = best_pos + beta - delta_neg
+        # zeros and set to device
+        zeros = torch.zeros(delta_neg.size())
+        bCUDA = delta_neg.get_device()
+        if bCUDA >= 0 and torch.cuda.is_available():
+            zeros = zeros.to(torch.device(bCUDA))
+        hinge_loss = torch.max(zeros, diff)
+        # LAZY
+        second_loss = torch.max(hinge_loss)
+
+        # get combined loss
+        loss = triplet_loss + second_loss
+        return loss
+
         if anc.size() != pos.size() or anc.size() != neg.size() or anc.size() != neg_star.size():
             raise ValueError('Size of input tensors should match!!', anc.size(), pos.size(), neg.size(), neg_star.size())
 
@@ -144,6 +174,62 @@ class PRNet(nn.Module):
         loss = first_term + second_term
 
         return loss
+
+    
+    def TripletLoss(self, anc, pos, neg, p=2.0, margin=0.5, lazy=False):
+        # anc: anchor tensor
+        # pos: list of positive tensors (x2)
+        # neg: list of negative tensors (x6 or x8)
+        # implementation of (Lazy)TripletLoss
+
+        # Find best positive tensor (Focusing on best pos)
+        anc = torch.cat([anc, anc], dim=0)
+        pos = torch.cat([pos[0], pos[1]], dim=0)
+        # print(anc.size(), pos.size())
+        delta_pos = self.p_distance(anc, pos, p=p)
+        # print('delta_pos', delta_pos.size(), '\n', delta_pos)
+        best_pos_val = torch.min(delta_pos)
+        # print('best_pos', best_pos_val)
+
+        # Compute the hinge loss
+        if self.num_neg_samples % 2 != 0:
+            raise ValueError('num of negative samples should be integal multiplication of 2.')
+        anc = torch.cat(int(self.num_neg_samples/2) * [anc], dim=0)
+        neg = torch.cat(neg, dim=0)
+        # print('\n', anc.size(), neg.size())
+        delta_neg = self.p_distance(anc, neg, p=p)
+        # print(delta_neg)
+        # delta_neg = torch.cdist(anc, neg, p=p)
+        # margined difference
+        diff = best_pos_val + margin - delta_neg
+        # zeros and set to device
+        zeros = torch.zeros(delta_neg.size())
+        bCUDA = delta_neg.get_device()
+        if bCUDA >= 0 and torch.cuda.is_available():
+            zeros = zeros.to(torch.device(bCUDA))
+        hinge_loss = torch.max(zeros, diff)
+        # print('hinge test:', hinge_loss, '\n', diff)
+
+        # get final (lazy) triplet loss
+        if lazy:
+            loss = torch.max(hinge_loss)
+        else:
+            loss = torch.sum(hinge_loss)
+        
+        return loss, best_pos_val
+        
+    def p_distance(self, x, y, p=2.0):
+        diff = x - y
+        # p=2:
+        if p == 1:
+            dist = torch.abs(diff)
+        elif p == 2:
+            dist = torch.sqrt(torch.sum(diff**2, dim=1))
+        else:
+            raise ValueError('unsupport distance function p =',p, 'only p= 1 or 2 is supported')
+
+        return dist
+
 
     # def accuracy(outputs):
 

@@ -330,9 +330,9 @@ class ScannetTripleDataset(PointCloudDataset):
                 if num_pos_ids < 2:
                     print('Skip current pcd (', self.files[s_ind][f_ind].split('/')[-1], ') due to empty positives.')
                     return []
-                print('Current pcd index:', s_ind, f_ind)
-                print('Positive lists:', self.posIds[s_ind][f_ind])
-                print('Negative lists:', self.negIds[s_ind][f_ind])
+                # print('Current pcd index:', s_ind, f_ind)
+                # print('Positive lists:', self.posIds[s_ind][f_ind])
+                # print('Negative lists:', self.negIds[s_ind][f_ind])
 
                 # Positive pcd indices
                 # pos_s_ind = s_ind
@@ -401,9 +401,9 @@ class ScannetTripleDataset(PointCloudDataset):
                 #      coordinate frame
                 #################
 
-                print(s_ind, f_ind, len(self.files), len(self.files[s_ind]))
+                # print(s_ind, f_ind, len(self.files), len(self.files[s_ind]))
                 current_file = self.files[s_ind][f_ind]
-                print('Loading: ', current_file)
+                # print('Loading: ', current_file)
 
                 # data = read_ply(current_file)
                 # points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
