@@ -228,11 +228,12 @@ if __name__ == '__main__':
 
 
     #### plot loss ####
-    # Log_folders = ['Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_12-56-15']
-    Log_folders = ['Recog_Log_2021-06-29_12-22-03']
-    Log_legends = ['SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'Adam, 5_feat, 6_neg, full epoch']
-    Log_colors = ['r', 'g', 'b', 'y', 'c']
-    avg_step = 100
+    # Log_folders = ['Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-21_12-56-15']
+    # Log_legends = ['Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg, full epoch']
+    Log_folders = ['Recog_Log_2021-06-27_13-47-12', 'Recog_Log_2021-06-27_13-59-08']
+    Log_legends = ['Adam, 5_feat, 6_neg', 'Adam, 3_feat, 6_neg']
+    Log_colors = ['r', 'b', 'g', 'y', 'c']
+    avg_step = 5000
     all_x = []
     all_y = []
     for i, folder in enumerate(Log_folders):
@@ -262,8 +263,9 @@ if __name__ == '__main__':
     plt.legend()
     plt.title('Loss per epoch')
     plt.xlabel('Epoches')
-    plt.xlim([0, 50])
+    # plt.xlim([0, 500])
     plt.ylabel('Triplet Loss')
+    plt.grid()
     plt.show()
 
 
