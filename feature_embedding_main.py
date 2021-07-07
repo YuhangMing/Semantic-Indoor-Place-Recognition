@@ -91,11 +91,14 @@ if __name__ == '__main__':
     parser.add_argument('--eval', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
     parser.add_argument('--visualise', dest='bVISUAL', action='store_true', help='Set to visualise the VLAD results')
     FLAGS=parser.parse_args()
-    print(FLAGS.bTRAIN)
-    print(FLAGS.optimiser)
-    print(FLAGS.num_feat)
-    print(FLAGS.bEVAL)
-    print(FLAGS.bVISUAL)
+    if FLAGS.bTRAIN:
+        print('Training parameters:')
+        print('Optimiser:', FLAGS.optimiser)
+        print('Number of features:', FLAGS.num_feat)
+    else:
+        print('Testing parameters load from files.')
+        print('Evaluation:', FLAGS.bEVAL)
+        print('Visualisation:', FLAGS.bVISUAL)
 
     ######################
     # LOAD THE PRE-TRAINED 
@@ -126,7 +129,7 @@ if __name__ == '__main__':
     chosen_chkp = os.path.join(chosen_log, 'checkpoints', chosen_chkp)
     print('Checkpoints chosen:', chosen_chkp)
 
-    # Initialise and Load the configs
+    # Initialise and Load the segmentation network configs
     config = Config()
     config.load(chosen_log)
     config.KPlog = chosen_chkp
@@ -141,7 +144,7 @@ if __name__ == '__main__':
     # 50 is a suitable value to cover a room-scale point cloud
     # 4 is a suitable value to cover a rgbd slam input size point cloud
     config.input_threads = 0
-    config.print_current()
+    # config.print_current()
 
     # set label manually here for scannet segmentation
     # with the purpose of putting loading parts together
@@ -281,24 +284,25 @@ if __name__ == '__main__':
         print('\nLoad pre-trained recognition VLAD')
         print('*********************************')
         t = time.time()
-        if FLAGS.optimiser in ['adam', 'Adam', 'ADAM']:
-            if FLAGS.num_feat == 3:
-                chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset, current at e24
-            elif FLAGS.num_feat == 5:
-                chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e41
-            else:
-                raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
-        elif FLAGS.optimiser in ['sgd', 'Sgd', 'SGD']:
-            if FLAGS.num_feat == 5:
-                chosen_log = 'results/Recog_Log_2021-06-21_05-49-38'    # SGD 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e26
-            else:
-                raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
-        else:
-            raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
+        # if FLAGS.optimiser in ['adam', 'Adam', 'ADAM']:
+        #     if FLAGS.num_feat == 3:
+        #         chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset, current at e24
+        #     elif FLAGS.num_feat == 5:
+        #         chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e41
+        #     else:
+        #         raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
+        # elif FLAGS.optimiser in ['sgd', 'Sgd', 'SGD']:
+        #     if FLAGS.num_feat == 5:
+        #         chosen_log = 'results/Recog_Log_2021-06-21_05-49-38'    # SGD 0.0001, 5 feats, epoch 50, 5000 steps, full dataset, current at e26
+        #     else:
+        #         raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
+        # else:
+        #     raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
+        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-        chkp_idx = None
-        print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx, 'NUM_FEAT=', FLAGS.num_feat)
+        chkp_idx = 2        # USE ckpt_0015
+        print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
         # Find all checkpoints in the chosen training folder
         chkp_path = os.path.join(chosen_log, 'checkpoints')
@@ -320,7 +324,7 @@ if __name__ == '__main__':
         # # Change parameters for the TESTing here. 
         # config.batch_num = 1        # for cloud segmentation
         # config.val_batch_num = 1    # for SLAM segmentation
-        config.validation_size = 15000    # decide how many points will be covered in prediction -> how many forward passes
+        config.validation_size = 3500    # decide how many points will be covered in prediction -> how many forward passes
         # config.input_threads = 0
         config.print_current()
 
@@ -372,9 +376,11 @@ if __name__ == '__main__':
         # print('Calibed neighbor limit:', val_sampler.dataset.neighborhood_limits)
         # print('Done in {:.1f}s\n'.format(time.time() - t))
 
-        db_path = '/media/yohann/Datasets/datasets/ScanNet/scans/input_pcd/database'
+        db_path = join(test_dataset.input_pcd_path, 'database')
+        if not exists(db_path):
+            makedirs(db_path)
         
-        dist_thred = 2.0
+        dist_thred = 3.0
         # dist_thred = 0.7 # 0.7/1.0
         # ovlp_thred = 0.2
         # vlad_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_vlad_KDTree.txt')
@@ -382,7 +388,7 @@ if __name__ == '__main__':
         # bIdfId_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_file_id.txt')
         # bIdbId_file = join(db_path, 'd'+str(dist_thred)+'_o'+str(ovlp_thred)+'_batch_id.txt')
         vlad_file = join(db_path, 'vlad_KDTree.txt')
-        pcd_file = join(db_path, 'point_clouds.txt')
+        # pcd_file = join(db_path, 'point_clouds.txt')
         bIdfId_file = join(db_path, 'file_id.txt')
         bIdbId_file = join(db_path, 'batch_id.txt')
 
@@ -396,7 +402,7 @@ if __name__ == '__main__':
             batchInd_fileId = []
             batchInd_batchId = []
             database_cntr = {}
-            database_pcds = {}
+            # database_pcds = {}
             for i, batch in enumerate(test_loader):
                 # continue if empty input list is given
                 # caused by empty positive neighbors
@@ -409,12 +415,24 @@ if __name__ == '__main__':
                 if break_cnt > 4:
                     break
 
+                ## NOTE centroid here is zero meaned. Use un-meaned pts for centroid test
                 tmp_cntr = batch.frame_centers.cpu().detach().numpy()[0]    # np.array, (3,)
-                tmp_fmid = batch.frame_inds.cpu().detach().numpy()[0]       # list, [scene_id, frame_id]
-                tmp_pts = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
+                tmp_fmid = batch.frame_inds.cpu().detach().numpy()[0]       # list, [scene index, frame index]
+                # tmp_pts = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
                 tmp_pose = test_loader.dataset.poses[tmp_fmid[0]][tmp_fmid[1]]
-                tmp_pts = (tmp_pose[:3, :3] @ tmp_pts.T).T + tmp_pose[:3, 3]
-                # print(tmp_fmid, tmp_cntr)
+                # tmp_pts = (tmp_pose[:3, :3] @ tmp_pts.T).T + tmp_pose[:3, 3]
+
+                ## Load un-meaned pcd
+                zmFile = test_loader.dataset.files[tmp_fmid[0]][tmp_fmid[1]].split('input_pcd_0mean')
+                oriPCD = zmFile[0] + 'input_pcd' + zmFile[1]
+                oriData = read_ply(oriPCD)
+                oriPts = np.vstack((oriData['x'], oriData['y'], oriData['z'])).astype(np.float32).T # Nx3
+                ori_cntr = np.mean(oriPts, axis=0)
+                ori_cntr = tmp_pose[:3, :3] @ ori_cntr + tmp_pose[:3, 3]
+                
+                ## Use un-meaned centroid value
+                tmp_cntr = ori_cntr
+                # print(tmp_fmid, tmp_cntr, ori_cntr)
                 if tmp_fmid[0] not in database_cntr.keys():
                     print('ADDING NEW PCD TO DB:', tmp_fmid)
                     batch.to(device)
@@ -424,10 +442,11 @@ if __name__ == '__main__':
                     # store vlad vec, frm_cntr, and indices
                     database_vect.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
                     database_cntr[tmp_fmid[0]] = [tmp_cntr]
-                    database_pcds[tmp_fmid[0]] = [tmp_pts]
+                    # database_pcds[tmp_fmid[0]] = [tmp_pts]
                     batchInd_fileId.append(tmp_fmid)
                     batchInd_batchId.append(i)
                 else:
+                    # initialise boolean variable
                     bAddToDB = True
 
                     ## Only check with distance threshold
@@ -438,7 +457,6 @@ if __name__ == '__main__':
                             bAddToDB = False
                             break
 
-                    
                     # ## Distance thre & overlap thre
                     # # loose check with distance between centroids
                     # # tt = time.time()
@@ -475,7 +493,7 @@ if __name__ == '__main__':
                         # store vlad vec, frm_cntr, and indices
                         database_vect.append(vlad.cpu().detach().numpy()[0]) # append a (1,256) np.ndarray
                         database_cntr[tmp_fmid[0]].append(tmp_cntr)
-                        database_pcds[tmp_fmid[0]].append(tmp_pts)
+                        # database_pcds[tmp_fmid[0]].append(tmp_pts)
                         batchInd_fileId.append(tmp_fmid)
                         batchInd_batchId.append(i)
                 # print('stored center number:', len(database_cntr[tmp_fmid[0]]))
@@ -487,8 +505,8 @@ if __name__ == '__main__':
             # store the database
             with open(vlad_file, "wb") as f:
                 pickle.dump(search_tree, f)
-            with open(pcd_file, "wb") as f:
-                pickle.dump(database_pcds, f)
+            # with open(pcd_file, "wb") as f:
+            #     pickle.dump(database_pcds, f)
             with open(bIdfId_file, "wb") as f:
                 pickle.dump(batchInd_fileId, f)
             with open(bIdbId_file, "wb") as f:
@@ -500,8 +518,8 @@ if __name__ == '__main__':
             # store the database
             with open(vlad_file, "rb") as f:
                 search_tree = pickle.load(f)
-            with open(pcd_file, "rb") as f:
-                database_pcds = pickle.load(f)
+            # with open(pcd_file, "rb") as f:
+            #     database_pcds = pickle.load(f)
             with open(bIdfId_file, "rb") as f:
                 batchInd_fileId = pickle.load(f)
             with open(bIdbId_file, "rb") as f:
@@ -608,10 +626,19 @@ if __name__ == '__main__':
             if FLAGS.bEVAL:
                 print('Evaluating...')
                 q_cent = batch.frame_centers.cpu().detach().numpy()[0]    # np.array, (3,)
-                q_pcd_np = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
+                # q_pcd_np = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
                 q_pose = test_loader.dataset.poses[q_fmid[0]][q_fmid[1]]
-                q_pcd_np = (q_pose[:3, :3] @ q_pcd_np.T).T + q_pose[:3, 3]
-                queryKDT = KDTree(q_pcd_np)
+                # q_pcd_np = (q_pose[:3, :3] @ q_pcd_np.T).T + q_pose[:3, 3]
+                # queryKDT = KDTree(q_pcd_np)
+                
+                ## Use un-meaned pcd file
+                query_file = test_loader.dataset.files[q_fmid[0]][q_fmid[1]].split('input_pcd_0mean')
+                oriPCD = query_file[0] + 'input_pcd' + query_file[1]
+                oriData = read_ply(oriPCD)
+                oriPts = np.vstack((oriData['x'], oriData['y'], oriData['z'])).astype(np.float32).T # Nx3
+                ori_cntr = np.mean(oriPts, axis=0)
+                ori_cntr = q_pose[:3, :3] @ ori_cntr + q_pose[:3, 3]
+                q_cent = ori_cntr
 
                 one_result = []
                 for k, id in enumerate(ind[0]):
@@ -622,15 +649,22 @@ if __name__ == '__main__':
 
                     # get k-th retrieved point cloud
                     retri_file = test_loader.dataset.files[r_fmid[0]][r_fmid[1]]
-                    print(k, retri_file)
-                    r_pcd = o3d.io.read_point_cloud(retri_file)
-
                     r_pose = test_loader.dataset.poses[r_fmid[0]][r_fmid[1]]
-                    r_pcd.transform(r_pose)
-                    r_pcd_np = np.asarray(r_pcd.points)
+                    print(k, retri_file)
+
+                    ## Use un-meaned pcd file
+                    retri_file = retri_file.split('input_pcd_0mean')
+                    retriPCD = retri_file[0] + 'input_pcd' + retri_file[1]
+                    retriData = read_ply(retriPCD)
+                    retriPts = np.vstack((retriData['x'], retriData['y'], retriData['z'])).astype(np.float32).T # Nx3
+                    r_cent = np.mean(retriPts, axis=0)
+                    r_cent = r_pose[:3, :3] @ r_cent + r_pose[:3, 3]
+                    # r_pcd = o3d.io.read_point_cloud(retri_file)
+                    # r_pcd.transform(r_pose)
+                    # r_pcd_np = np.asarray(r_pcd.points)
+                    # r_cent = np.mean(r_pcd_np, axis=0)
 
                     # compute distance between centroids
-                    r_cent = np.mean(r_pcd_np, axis=0)
                     dist = np.linalg.norm(q_cent - r_cent)
                     ## single threshold with only distance
                     if dist < dist_thred:
