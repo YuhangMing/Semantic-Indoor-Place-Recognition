@@ -1,9 +1,56 @@
-TRAINING: 129,767 point clouds
+TRAINING: 35,102 point clouds
+    with 227 stored pcd 3273 test pcd 
+    with distance threshold 3.0
+chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'	# Adam, Triplet loss, 5 feats, 35000 steps, full dataset.
+   Epoch10 - Evaluation Results 
+ - Top 1 precision = 0.41399327833791627
+ - Top 2 precision = 0.5548426520012221
+ - Top 3 precision = 0.6257256339749465
+   Epoch15 - Evaluation Results 
+ - Top 1 precision = 0.4641002138710663
+ - Top 2 precision = 0.5869233119462267
+ - Top 3 precision = 0.663305835624809
+   Epoch20 - Evaluation Results 
+ - Top 1 precision = 0.4634891536816376
+ - Top 2 precision = 0.5857011915673694
+ - Top 3 precision = 0.6648334860983807
 
-chosen_log = 'results/Recog_Log_2021-06-18_21-54-24'    # Adam 0.0001, 5 feats, epoch 50, 600 steps, full dataset
-Evaluation Results 
+chosen_log = 'results/Recog_Log_2021-07-01_07-48-10'	# Adam, Triplet loss, 3 feats, 35000 steps, full dataset.
+   Epoch10 - Evaluation Results 
+ - Top 1 precision = 0.3748854262144821
+ - Top 2 precision = 0.5025970058050718
+ - Top 3 precision = 0.5722578673999389
+   Epoch15 - Evaluation Results
+ - Top 1 precision = 0.3846623892453407
+ - Top 2 precision = 0.5022914757103575
+ - Top 3 precision = 0.5786739993889398
+   Epoch20 - Evaluation Results
+ - Top 1 precision = 0.3944393522761992
+ - Top 2 precision = 0.5117629086465016
+ - Top 3 precision = 0.591811793461656
+
+chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'	# Adam, Quadruplet loss, 3 feats, 35000 steps, full dataset.
+   Epoch10 - Evaluation Results
+ - Top 1 precision = 0.5080965475099297
+ - Top 2 precision = 0.6128933699969447
+ - Top 3 precision = 0.6718606782768103
+   Epoch15 - Evaluation Results
+ - Top 1 precision = 0.5465933394439352
+ - Top 2 precision = 0.641918728994806
+ - Top 3 precision = 0.6972196761380997
+   Epoch20 - Evaluation Results 
+ - Top 1 precision = 0.5707302169263673
+ - Top 2 precision = 0.6645279560036663
+ - Top 3 precision = 0.7265505652306752
+
+
+
+
+TRAINING: 129,767 point clouds
     with 425 stored pcd 13557 test pcd 
     with distance threshold 2.0
+chosen_log = 'results/Recog_Log_2021-06-18_21-54-24'    # Adam 0.0001, 5 feats, epoch 50, 600 steps, full dataset
+Evaluation Results
  - Top 1 precision = 0.3242605296156967
  - Top 2 precision = 0.4427970789997787
  - Top 3 precision = 0.5139042561038578
@@ -14,35 +61,21 @@ Killed half way.
 
 
 chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset
-Evaluation Results 
-    with 425 stored pcd 13557 test pcd 
-    with distance threshold 2.0
+Evaluation Results
  - Top 1 precision = 0.3882127314302574
  - Top 2 precision = 0.5133141550490522
  - Top 3 precision = 0.5881832263775172
 
 
 chosen_log = 'results/Recog_Log_2021-06-21_05-27-47'    # Adam 0.0001, 5 feats, epoch 10, 5000 steps, full dataset
-Evaluation Results 
-    with 425 stored pcd 13557 test pcd 
-    with distance threshold 2.0
+Evaluation Results
  - Top 1 precision = 0.39529394408792506
  - Top 2 precision = 0.5096997860883676
  - Top 3 precision = 0.5833886553072214
 chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 30, 5000 steps, full dataset
 Evaluation Results 
-    with 425 stored pcd 13557 test pcd 
-    with distance threshold 2.0
  - Top 1 precision = 0.5362543335546213
  - Top 2 precision = 0.6484472965995427
  - Top 3 precision = 0.711514346831895
- 
- 
- 
-chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 30, 5000 steps, full dataset
-Evaluation Results 
-    with 399 stored pcd 3209 test pcd 
-    with distance threshold 2.0
- - Top 1 precision = 0.5123091305702712
- - Top 2 precision = 0.6484886257401059
- - Top 3 precision = 0.7142411966344656
+
+

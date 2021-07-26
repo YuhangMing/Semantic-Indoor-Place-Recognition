@@ -50,6 +50,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 
 if __name__ == '__main__':
+    ### PCDs in camera coordinate frame
     # Set root paths
     scannet_path = '/media/yohann/Datasets/datasets/ScanNet'
     data_split_path = os.path.join(scannet_path, 'tools/Tasks/Benchmark')

@@ -99,7 +99,7 @@ class ScannetTripleDataset(PointCloudDataset):
             self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
             self.scenes = self.scenes
             # self.scenes = [self.scenes[0]]  # only test one scene
-            print((self.scenes))
+            # print((self.scenes))
         else:
             raise ValueError('Unsupport set type')
 
@@ -209,6 +209,7 @@ class ScannetTripleDataset(PointCloudDataset):
         # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
         # pcd with zero-meaning coordinates
         self.input_pcd_path = join(self.path, 'scans', 'input_pcd_0mean')
+        print("point cloud path:", self.input_pcd_path)
         self.prepare_point_cloud()
 
         # get all_inds as 2D array

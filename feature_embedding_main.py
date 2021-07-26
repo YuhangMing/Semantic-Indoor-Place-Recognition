@@ -88,7 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', dest='bTRAIN', action='store_false', help='Set to test the VLAD layers')
     parser.add_argument('--optimiser', type=str, default='Adam', help='Choose the optimiser for training')
     parser.add_argument('--num_feat', type=int, default=5, help='How many block features to use [default: 5]')
-    parser.add_argument('--eval', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
+    parser.add_argument('--evaluate', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
     parser.add_argument('--visualise', dest='bVISUAL', action='store_true', help='Set to visualise the VLAD results')
     FLAGS=parser.parse_args()
     if FLAGS.bTRAIN:
@@ -298,10 +298,12 @@ if __name__ == '__main__':
         #         raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
         # else:
         #     raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
-        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        # chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'    # Triplet, feat5
+        chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'    # Triplet, feat3
+        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'    # Quadruplet, feat5
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-        chkp_idx = 2        # USE ckpt_0015
+        chkp_idx = 3        # USE ckpt_0020
         print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
         # Find all checkpoints in the chosen training folder
@@ -345,7 +347,7 @@ if __name__ == '__main__':
         print('\nData Preparation')
         print('****************')
         t = time.time()
-        print('Test data:')
+        # print('Test data:')
         # new dataset for triplet input
         test_dataset = ScannetTripleDataset(config, 'test', balance_classes=False)
         test_sampler = ScannetTripleSampler(test_dataset)

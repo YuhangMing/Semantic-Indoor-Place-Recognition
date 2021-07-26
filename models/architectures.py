@@ -347,7 +347,7 @@ class KPFCNN(nn.Module):
     def inter_encoder_features(self, batch):
         # Get input features
         x = batch.features.clone().detach()
-        print('input feature dimensions:', x.size())
+        # print('input feature dimensions:', x.size())
 
         # Loop over encoder blocks
         # intermediate_features = [x]
@@ -356,7 +356,7 @@ class KPFCNN(nn.Module):
         previous_x = x
         for block_i, block_op in enumerate(self.encoder_blocks):
             x = block_op(x, batch)
-            print(block_i, 'layer:', x.size())
+            # print(block_i, 'layer:', x.size())
             if x.size(0) != previous_num:
                 intermediate_features += [previous_x]
                 previous_num = x.size(0)
