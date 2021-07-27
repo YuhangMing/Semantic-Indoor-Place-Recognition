@@ -110,7 +110,8 @@ if __name__ == '__main__':
     t = time.time()
     # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
     # chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
-    chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
+    chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
+    # chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = 9 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
@@ -187,15 +188,23 @@ if __name__ == '__main__':
         config.optimiser = FLAGS.optimiser
         config.max_in_points = 9000
         config.max_val_points = 9000
-        config.num_neg_samples = 8
+        config.num_neg_samples = 6
         config.batch_num = 1
         config.val_batch_num = 1
-        config.max_epoch = 50
-        config.epoch_steps = 35000
-        config.checkpoint_gap = 5
+        # use smaller epoch step here to better restore training
+        config.max_epoch = 175
+        config.epoch_steps = 5000
+        config.checkpoint_gap = 35
+        # config.max_epoch = 25
+        # config.epoch_steps = 35000
+        # config.checkpoint_gap = 5        
         config.learning_rate = 1e-4
         # config.lr_decays = {i: 0.5 for i in [10, 20, 30, 40]}
-        config.lr_decays = {i: 0.9 for i in range(1, config.max_epoch)}
+        # config.lr_decays = {i: 0.9 for i in range(1, config.max_epoch)}
+        config.lr_decays = {i: 1 for i in range(1, config.max_epoch)}
+        for i in range(7, config.max_epoch, 7):
+            config.lr_decays[i] = 0.9
+
         config.weight_decay = 1e-3
         if config.saving:
             config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())

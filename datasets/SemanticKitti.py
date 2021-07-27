@@ -63,7 +63,8 @@ class SemanticKittiDataset(PointCloudDataset):
 
         # Dataset folder
         # self.path = '../../Data/SemanticKitti'
-        self.path = '/media/yohann/Datasets/datasets/SemanticKitti'
+        # self.path = '/media/yohann/Datasets/datasets/SemanticKitti'
+        self.path = '/media/adam/Datasets/datasets/SemanticKitti'
         # self.path = '/mnt/nas_7/datasets/SemanticKitti'
 
         # Type of task conducted on this dataset

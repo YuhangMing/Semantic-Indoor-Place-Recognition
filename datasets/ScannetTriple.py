@@ -72,7 +72,8 @@ class ScannetTripleDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '/media/yohann/Datasets/datasets/ScanNet'
+        # self.path = '/media/yohann/Datasets/datasets/ScanNet'
+        self.path = '/media/adam/Datasets/datasets/ScanNet'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
 
         # Type of task conducted on this dataset
@@ -575,11 +576,13 @@ class ScannetTripleDataset(PointCloudDataset):
         stacked_features = np.ones_like(stacked_points[:, :1], dtype=np.float32)
         # print('colors:', features.shape,  type(features[0,0]))
         # print('unit:', stacked_features.shape,  type(stacked_features[0,0]))
-        if self.config.in_features_dim == 4:
+        if self.config.in_features_dim == 1:
+            pass
+        elif self.config.in_features_dim == 4:
             # [1, r, g, b]
             stacked_features = np.hstack((stacked_features, features[:, :3]))
         else: 
-            raise ValueError('Only accepted input dimensions are 4 (without XYZ)')
+            raise ValueError('Only accepted input dimensions as 1 or 4 (without XYZ)')
         # print('features:', stacked_features.shape,  type(stacked_features[0,0]))
 
 

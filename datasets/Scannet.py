@@ -127,8 +127,9 @@ class ScannetDataset(PointCloudDataset):
 
         # Dataset folder
         # # self.path = '/home/yohann/NNs/data/ScanNet'
-        self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        # # self.path = '/mnt/nas_7/datasets/ScanNet'
+        # self.path = '/media/yohann/Datasets/datasets/ScanNet'
+        self.path = '/media/adam/Datasets/datasets/ScanNet'
+        # self.path = '/mnt/nas_7/datasets/ScanNet'
         # # test on seven scenes
         # self.path = '/media/yohann/Datasets/datasets/7Scenes/point_cloud'
 
