@@ -632,8 +632,10 @@ class ScannetTripleDataset(PointCloudDataset):
             all_scene_pcds = pickle.load(f)
 
         # Loop through all scenes to retrieve data for current task
+        pcd_count = 0
         for i, scene in enumerate(self.scenes):
             num_scene_pcds = len(all_scene_pcds[scene])
+            pcd_count += num_scene_pcds
             print('scene_id_name', i, scene, 'num_of_pcds', num_scene_pcds)
             print('Processing:', scene, '(', i+1 , '/', len(self.scenes), ')') 
             # print('  from', scene_folder)
@@ -687,6 +689,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 self.posIds.append(all_posId)
                 self.negIds.append(all_negId)
             # print(self.posIds)
+        print('Total # of pcd:', pcd_count)
 
         if self.set in ['training', 'validation']:
             self.class_proportions = np.ones((self.num_classes,), dtype=np.int32)

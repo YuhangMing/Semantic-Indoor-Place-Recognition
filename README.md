@@ -1,7 +1,8 @@
+Modified on the KPConv network by Hugues THOMAS
+
 
 ![Intro figure](https://github.com/HuguesTHOMAS/KPConv-PyTorch/blob/master/doc/Github_intro.png)
 
-Created by Hugues THOMAS
 
 ## Introduction
 

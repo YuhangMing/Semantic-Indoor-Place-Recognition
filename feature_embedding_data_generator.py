@@ -232,7 +232,7 @@ if __name__ == '__main__':
     # NOTE positive indices and negative indices are not sorted!
     with open(os.path.join(scannet_path, 'vlad_pcd.txt'), 'wb') as pcd_file:
         pickle.dump(all_files, pcd_file)
-    print('\nPCD saved to', os.path.join(scannet_path, 'pcd_list.txt'))
+    print('\nPCD saved to', os.path.join(scannet_path, 'vlad_pcd.txt'))
     with open(os.path.join(scannet_path, 'vlad_pos_neg.txt'), 'wb') as vlad_file:
         pickle.dump(all_scene_pos_neg, vlad_file)
     print('VLAD saved to', os.path.join(scannet_path, 'vlad_pos_neg.txt\n'))

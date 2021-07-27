@@ -108,10 +108,10 @@ if __name__ == '__main__':
     print('\nLoad pre-trained segmentation KP-FCNN')
     print('*************************************')
     t = time.time()
-    # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
-    # chosen_log = 'results/Log_2021-05-14_02-21-27'  # => ScanNetSLAM (subset), batch 8, 1st feat 64, 0.04-2.0
-    chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
-    # chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
+    # print('ScanNetSLAM, WITHOUT color')
+    # chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
+    print('ScanNetSLAM, WITH color')
+    chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = 9 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
         # Choose here if you want to start training from a previous snapshot (None for new training)
         # previous_training_path = 'Recog_Log_2021-06-21_05-27-47'
-        previous_training_path = ''
+        previous_training_path = 'Recog_Log_2021-07-27_11-00-13'
 
         # Choose index of checkpoint to start from. If None, uses the latest chkp
         chkp_idx = None # override here
@@ -307,9 +307,12 @@ if __name__ == '__main__':
         #         raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
         # else:
         #     raise ValueError('unsupported feature number', FLAGS.num_feat, 'and optimiser', FLAGS.optimiser)
-        # chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'    # Triplet, feat5
-        chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'    # Triplet, feat3
-        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'    # Quadruplet, feat5
+        # print('Triplet loss, feat_num = 5')
+        # chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'
+        # print('Triplet loss, feat_num = 3')
+        # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
+        print('Quadruplet loss, feat_num = 5')
+        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
         chkp_idx = 3        # USE ckpt_0020
@@ -335,7 +338,7 @@ if __name__ == '__main__':
         # # Change parameters for the TESTing here. 
         # config.batch_num = 1        # for cloud segmentation
         # config.val_batch_num = 1    # for SLAM segmentation
-        config.validation_size = 3500    # decide how many points will be covered in prediction -> how many forward passes
+        config.validation_size = 3700    # decide how many points will be covered in prediction -> how many forward passes
         # config.input_threads = 0
         config.print_current()
 
@@ -414,7 +417,9 @@ if __name__ == '__main__':
             batchInd_batchId = []
             database_cntr = {}
             # database_pcds = {}
+            db_count = 0
             for i, batch in enumerate(test_loader):
+                # print(i)
                 # continue if empty input list is given
                 # caused by empty positive neighbors
                 if len(batch.points) == 0:
@@ -456,6 +461,8 @@ if __name__ == '__main__':
                     # database_pcds[tmp_fmid[0]] = [tmp_pts]
                     batchInd_fileId.append(tmp_fmid)
                     batchInd_batchId.append(i)
+
+                    db_count += 1
                 else:
                     # initialise boolean variable
                     bAddToDB = True
@@ -507,8 +514,12 @@ if __name__ == '__main__':
                         # database_pcds[tmp_fmid[0]].append(tmp_pts)
                         batchInd_fileId.append(tmp_fmid)
                         batchInd_batchId.append(i)
+
+                        db_count += 1
                 # print('stored center number:', len(database_cntr[tmp_fmid[0]]))
             database_vect = np.array(database_vect)
+
+            print('DB size:', db_count, database_vect.shape)
             search_tree = KDTree(database_vect, leaf_size=4)
             # print(batchInd_fileId)
             # print(database_vect.shape)
@@ -598,6 +609,7 @@ if __name__ == '__main__':
         break_cnt = 0
         test_pair = []
         eval_results = []
+        log_strings = ''
         for i, batch in enumerate(test_loader):
             # continue if empty input list is given
             # caused by empty positive neighbors
@@ -644,6 +656,7 @@ if __name__ == '__main__':
                 
                 ## Use un-meaned pcd file
                 query_file = test_loader.dataset.files[q_fmid[0]][q_fmid[1]].split('input_pcd_0mean')
+                log_strings += (str(q_fmid[0]) + '_' + str(q_fmid[1]) + ': ' + query_file[1] + '\n')
                 oriPCD = query_file[0] + 'input_pcd' + query_file[1]
                 oriData = read_ply(oriPCD)
                 oriPts = np.vstack((oriData['x'], oriData['y'], oriData['z'])).astype(np.float32).T # Nx3
@@ -654,8 +667,10 @@ if __name__ == '__main__':
                 one_result = []
                 for k, id in enumerate(ind[0]):
                     r_fmid = batchInd_fileId[id]
+                    log_strings += ('  ' + str(r_fmid[0]) + '_' + str(r_fmid[1]))
                     if r_fmid[0] != q_fmid[0]:
                         one_result.append(0)
+                        log_strings += ': FAIL\n'
                         continue
 
                     # get k-th retrieved point cloud
@@ -677,12 +692,15 @@ if __name__ == '__main__':
 
                     # compute distance between centroids
                     dist = np.linalg.norm(q_cent - r_cent)
+                    log_strings += (': ' + str(dist))
                     ## single threshold with only distance
                     if dist < dist_thred:
+                        log_strings += ' SUCCESS\n'
                         for fill in range(k, 3):
                             one_result.append(1)
                         break
                     else:
+                        log_strings += ' FAIL\n'
                         one_result.append(0)
                     # ## double threshold with distance and overlap
                     # if dist < dist_thred * test_loader.dataset.in_R:
@@ -706,10 +724,6 @@ if __name__ == '__main__':
                 eval_results.append(np.array(one_result))
 
             print('current pcd finished in {:.4f}s\n'.format(time.time() - tt))
-            # ind = test_loader.dataset.epoch_inds[i]
-            # s_ind, f_ind = test_loader.dataset.all_inds[ind]
-            # current_file = test_loader.dataset.files[s_ind][f_ind]
-            # print(i, ind, s_ind, f_ind, current_file)
         print('Done in {:.1f}s\n'.format(time.time() - t))
         if FLAGS.bEVAL:
             eval_results = np.array(eval_results)
@@ -722,9 +736,24 @@ if __name__ == '__main__':
             print('Evaluation Results',
                   '\n    with', len(batchInd_fileId), 'stored pcd', num_test, 'test pcd',
                   '\n    with distance threshold', dist_thred)
+            
+            db_string = 'Database contains ' + str(len(batchInd_fileId)) + ' point clouds\n'
+            qr_string = 'Total number of point cloud tested: ' + str(num_test) + '\n'
+            thre_string = 'With distance threshold' + str(dist_thred) + '\n'
+            result_strings = ''
             for k, accum1 in enumerate(accu_results):
-                print(' - Top', k+1, 'precision =', accum1/num_test)
-
+                result_string = ' - Top ' + str(k+1) + ' precision = ' + str(accum1/num_test)
+                print(result_string)
+                result_strings += (result_string + '\n')
+            
+            # save logs to file
+            text_file = open("detail_results.txt", "wt")
+            text_file.write(log_strings)
+            text_file.write('\n'+db_string)
+            text_file.write(qr_string)
+            text_file.write(thre_string)
+            text_file.write(result_strings)
+            text_file.close()
 
         if FLAGS.bVISUAL:
             print('\nVisualisation')
