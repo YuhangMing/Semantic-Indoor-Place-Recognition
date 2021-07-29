@@ -190,6 +190,7 @@ class ScannetTripleDataset(PointCloudDataset):
         # self.pos_thred = 2**2
         self.posIds = []        # list of dictionary of positive pcd example ids for training
         self.negIds = []        # list of dictionary of negative pcd example ids for training
+        self.pcd_sizes = []     # list of list of pcd sizes
         # val/testing only
         self.class_proportions = None
         self.val_confs = []     # for validation
@@ -324,7 +325,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # reference to pointnet_vlad: train_pointnetvlad.py
                 # current pcd index:        s_ind & f_ind;
                 # positive pcd indices:     [pos_s_inds, pos_f_inds]; default 2
-                # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 8 (4 in dh3d)
+                # negative pcd indices:     [neg_s_inds, neg_f_inds]; default 6 (4 in dh3d)
                 # other negative pcd index: o_s_ind, o_f_ind.
 
                 # check there are enough positive pcds
@@ -351,26 +352,78 @@ class ScannetTripleDataset(PointCloudDataset):
                 # print(num_pos_ids, pos_s_ind, pos_f_inds)
                 all_indices = [ (s_ind, f_ind), (s_ind, pos_f_inds[0]), (s_ind, pos_f_inds[1]) ]
                 
-                # Negative pcd indices
+                ## Add selection criterion based on pcd size due GPU memory limitation ##
+                # check pcd sizes, choose 2x(9000+), 1x(7000-9000), 1x(5000-7000), 2x(5000-)
+                count_XL = 0
+                max_XL = 2
+                count_L = 0
+                max_L = 1
+                count_M = 0
+                max_M = 1
                 # choose at most one from the same scene
                 if len(self.negIds[s_ind][f_ind]) > 0:
                     neg_s_inds = [s_ind]
+                    neg_f_inds = [np.random.choice(self.negIds[s_ind][f_ind])]
+                    # get the size of selected pcd
+                    tmp_size = int(self.pcd_sizes[neg_s_inds[-1]][neg_f_inds[-1]])
+                    # print(tmp_size)
+                    if tmp_size >= 9000:
+                        count_XL += 1
+                    elif tmp_size >= 7000:
+                        count_L += 1
+                    elif tmp_size > 5000:
+                        count_M += 1
+                    else:
+                        pass
                 else:
                     neg_s_inds = []
-                # randomly choose from other scenes
+                    neg_f_inds = []
+                # continue select the rest negative pcds from other scenes
                 while len(neg_s_inds) < self.num_neg_samples:
-                    tmp_neg = np.random.choice( len(self.scenes) )
-                    # double check to prevent same (as anchor) scene is selected
-                    if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
-                        neg_s_inds.append(tmp_neg)
-                # get the (s_ind, f_ind) pairs
-                neg_f_inds = []
-                for neg_s in neg_s_inds:
-                    if neg_s == s_ind:
-                        neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
-                    else:
-                        neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
-                neg_f_inds = np.array(neg_f_inds)
+                    tmp_neg_s = np.random.choice( len(self.scenes) )
+                    if self.scenes[s_ind][:9] != self.scenes[tmp_neg_s][:9]:
+                        tmp_neg_f = np.random.randint(0, len(self.fids[tmp_neg_s]))
+                        # check the pcd size
+                        tmp_size = int(self.pcd_sizes[tmp_neg_s][tmp_neg_f])
+                        if tmp_size >= 9000:
+                            if count_XL == max_XL:
+                                continue
+                            count_XL += 1
+                        elif tmp_size >= 7000:
+                            if count_L == max_L:
+                                continue
+                            count_L += 1
+                        elif tmp_size >= 5000:
+                            if count_M == max_M:
+                                continue
+                            count_M += 1
+                        else:
+                            pass
+                        # print(tmp_size)
+                        neg_s_inds.append(tmp_neg_s)
+                        neg_f_inds.append(tmp_neg_f)
+                
+                # Negative pcd indices
+                # # choose at most one from the same scene
+                # if len(self.negIds[s_ind][f_ind]) > 0:
+                #     neg_s_inds = [s_ind]
+                # else:
+                #     neg_s_inds = []
+                # # randomly choose from other scenes
+                # while len(neg_s_inds) < self.num_neg_samples:
+                #     tmp_neg = np.random.choice( len(self.scenes) )
+                #     # double check to prevent same (as anchor) scene is selected
+                #     if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
+                #         neg_s_inds.append(tmp_neg)
+                # # get the (s_ind, f_ind) pairs
+                # neg_f_inds = []
+                # for neg_s in neg_s_inds:
+                #     if neg_s == s_ind:
+                #         neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
+                #     else:
+                #         neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
+                # neg_f_inds = np.array(neg_f_inds)
+                
                 # print(neg_s_inds, neg_f_inds)
                 for idx in range(self.num_neg_samples):
                     all_indices.append( (neg_s_inds[idx], neg_f_inds[idx]) )
@@ -620,16 +673,22 @@ class ScannetTripleDataset(PointCloudDataset):
         if not exists(self.input_pcd_path):
             raise ValueError('Missing input pcd folder:', self.input_pcd_path)
         
-        # Load pre-processed pos-neg indices AND file names
-        # all tasks are stored in a single file
+        # Load pre-processed files [all tasks are stored in a single file]
+        # positive and negative indices for each pcd
         vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_pos_neg.txt')
         with open(vlad_pn_file, "rb") as f:
             # dict, key = scene string, val = list of pairs of (list pos, list neg)
             all_scene_pos_neg = pickle.load(f)
+        # zero-meaned pcd file names for each pcd
         valid_pcd_file = join(self.path, 'VLAD_triplets', 'vlad_pcd.txt')
         with open(valid_pcd_file, "rb") as f:
             # dict, key = scene string, val = list of filenames
             all_scene_pcds = pickle.load(f)
+        # num of pts in each pcd
+        pcd_size_file = join(self.path, 'VLAD_triplets', 'pcd_size.txt')
+        with open(pcd_size_file, "rb") as f:
+            # dict, key = scene string, val = list of point numbers
+            dict_pcd_size = pickle.load(f)
 
         # Loop through all scenes to retrieve data for current task
         pcd_count = 0
@@ -685,6 +744,7 @@ class ScannetTripleDataset(PointCloudDataset):
             self.files.append(scene_files)
             self.poses.append(scene_poses)
             self.fids.append(scene_fids)
+            self.pcd_sizes.append(dict_pcd_size[scene])
             if self.set in ['training', 'validation']:
                 self.posIds.append(all_posId)
                 self.negIds.append(all_negId)

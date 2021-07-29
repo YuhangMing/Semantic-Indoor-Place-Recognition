@@ -108,10 +108,10 @@ if __name__ == '__main__':
     print('\nLoad pre-trained segmentation KP-FCNN')
     print('*************************************')
     t = time.time()
-    # print('ScanNetSLAM, WITHOUT color')
-    # chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
-    print('ScanNetSLAM, WITH color')
-    chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
+    print('ScanNetSLAM, WITHOUT color')
+    chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
+    # print('ScanNetSLAM, WITH color')
+    # chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = 9 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
@@ -191,19 +191,17 @@ if __name__ == '__main__':
         config.num_neg_samples = 6
         config.batch_num = 1
         config.val_batch_num = 1
-        # use smaller epoch step here to better restore training
-        config.max_epoch = 175
-        config.epoch_steps = 5000
-        config.checkpoint_gap = 35
-        # config.max_epoch = 25
-        # config.epoch_steps = 35000
-        # config.checkpoint_gap = 5        
+        config.max_epoch = 25
+        config.epoch_steps = 35000
+        config.checkpoint_gap = 5
+        # config.max_epoch = 175
+        # config.epoch_steps = 5000
+        # config.checkpoint_gap = 35        
         config.learning_rate = 1e-4
-        # config.lr_decays = {i: 0.5 for i in [10, 20, 30, 40]}
-        # config.lr_decays = {i: 0.9 for i in range(1, config.max_epoch)}
-        config.lr_decays = {i: 1 for i in range(1, config.max_epoch)}
-        for i in range(7, config.max_epoch, 7):
-            config.lr_decays[i] = 0.9
+        config.lr_decays = {i: 0.9 for i in range(1, config.max_epoch)}
+        # config.lr_decays = {i: 1 for i in range(1, config.max_epoch)}
+        # for i in range(7, config.max_epoch, 7):
+        #     config.lr_decays[i] = 0.9
 
         config.weight_decay = 1e-3
         if config.saving:
@@ -253,8 +251,7 @@ if __name__ == '__main__':
         # print(reg_net.named_parameters())
 
         # Choose here if you want to start training from a previous snapshot (None for new training)
-        # previous_training_path = 'Recog_Log_2021-06-21_05-27-47'
-        previous_training_path = 'Recog_Log_2021-07-27_11-00-13'
+        previous_training_path = ''
 
         # Choose index of checkpoint to start from. If None, uses the latest chkp
         chkp_idx = None # override here
