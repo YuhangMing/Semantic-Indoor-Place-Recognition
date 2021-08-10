@@ -949,6 +949,17 @@ class RecogModelTrainer:
         else:
             raise ValueError('Unknown optmiser:', config.optmiser)
         # print(self.optimizer.param_groups)
+
+        if config.loss in ['lazy_quadruplet', 'Lazy_Quadruplet', 'LzQuad', 'lzquad']:
+            # lazy quadruplet loss
+            self.loss_function = 'LzQuad'
+        elif config.loss in ['lazy_triplet', 'Lazy_Triplet', 'LzTrip', 'lztrip']:
+            # lazy triplet loss
+            self.loss_function = 'LzTrip'
+        elif config.loss in ['triplet', 'Triplet', 'Trip', 'trip']:
+            self.loss_function = 'Trip'
+        else:
+            raise ValueError('Unknown loss function:', config.loss)
         
         # Choose to train on CPU or GPU
         if on_gpu and torch.cuda.is_available():
@@ -1118,7 +1129,7 @@ class RecogModelTrainer:
                 # # TripletLoss
                 # loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1])
                 # # LazyQuadrupletLoss
-                loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1], vlad_desp[-1])
+                loss = net.loss(self.loss_function, vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1], vlad_desp[-1])
                 # acc = net.accuracy(outputs, batch.labels)
 
                 t += [time.time()]

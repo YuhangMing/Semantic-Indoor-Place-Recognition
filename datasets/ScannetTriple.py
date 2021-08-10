@@ -355,7 +355,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 ## Add selection criterion based on pcd size due GPU memory limitation ##
                 # check pcd sizes, choose 2x(9000+), 1x(7000-9000), 1x(5000-7000), 2x(5000-)
                 count_XL = 0
-                max_XL = 2
+                max_XL = 1
                 count_L = 0
                 max_L = 1
                 count_M = 0

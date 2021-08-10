@@ -18,21 +18,30 @@ validation
 test
 [629		224		207		208		214		2126]
 [0.17433481	0.06208426	0.05737251	0.05764967	0.05931264	0.58924612]
-  Database contains 236 pcds, and test with the rest 3372 pcds. 
-  Distance threshold is 3.0m.
-My PRNet
-  Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset.
- - Top 1 precision = 0.5714709371293001
- - Top 2 precision = 0.6699288256227758
- - Top 3 precision = 0.727164887307236
-PointNetVLAD
-  Adam, Lazy Quadruplet loss
- - Top 1 precision = 0.05308422301304864
- - Top 2 precision = 0.07502965599051008
- - Top 3 precision = 0.09994068801897983
+
+Database contains 236 pcds, and test with the rest 3372 pcds. 
+Distance threshold is 3.0m.
+  My PRNet
+    Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset.
+  - Top 1 precision = 0.5714709371293001
+  - Top 2 precision = 0.6699288256227758
+  - Top 3 precision = 0.727164887307236
+  My PRNet with PN-VLAD input
+    fixed number of input pts (4096), no color.
+    Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full datasts.
+  - Top 1 precision = 0.31583629893238435
+  - Top 2 precision = 0.42289442467378413
+  - Top 3 precision = 0.4893238434163701
+  PointNetVLAD
+    Adam, Lazy Quadruplet loss
+  - Top 1 precision = 0.05308422301304864
+  - Top 2 precision = 0.07502965599051008
+  - Top 3 precision = 0.09994068801897983
 
 
 
+
+-----------------------------------------------------------------------------------------------------------------
     with 227 stored pcd 3273 test pcd 
     with distance threshold 3.0
 chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'	# Adam, Triplet loss, 5 feats, 35000 steps, full dataset.
@@ -79,7 +88,7 @@ chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'	# Adam, Quadruplet loss, 5 
 
 
 
-
+-----------------------------------------------------------------------------------------------------------------
 TRAINING: 129,767 point clouds
     with 425 stored pcd 13557 test pcd 
     with distance threshold 2.0

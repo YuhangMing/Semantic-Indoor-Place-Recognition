@@ -69,10 +69,12 @@ if __name__ == '__main__':
     Activate environment: 
         conda acitvate graph
     
-    Train with LAST 3 blocks of encoder features: 
-        python feature_embedding_test.py --train --num_feat 3 --optimiser Adam/SGD
-    Train with ALL 5 blocks of encoder features: 
-        python feature_embedding_test.py --train --num_feat 5 --optimiser Adam/SGD
+    Train with LAST 3 blocks of encoder features with SGD: 
+        python feature_embedding_test.py --train --num_feat 3 --optimiser SGD
+    Train with ALL 5 blocks of encoder features with Adam: 
+        python feature_embedding_test.py --train --num_feat 5 --optimiser Adam
+    Train with ALL 5 blocks of encoder features but don't use color in input pcds: 
+        python feature_embedding_test.py --train --no_color --num_feat 5 --optimiser adam
     
     Test with LAST 3 blocks of encoder features, visualisation only: 
         python feature_embedding_test.py --test --num_feat 3 --optimiser Adam/SGD --visualise
@@ -86,7 +88,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', dest='bTRAIN', action='store_true', help='Set to train the VLAD layers')
     parser.add_argument('--test', dest='bTRAIN', action='store_false', help='Set to test the VLAD layers')
+    parser.add_argument('--no_color', dest='bNoColor', action='store_true', help='Set not to use color in input point clouds')
     parser.add_argument('--optimiser', type=str, default='Adam', help='Choose the optimiser for training')
+    parser.add_argument('--loss', type=str, default='lazy_quadruplet', help='Choose the loss function for training')
     parser.add_argument('--num_feat', type=int, default=5, help='How many block features to use [default: 5]')
     parser.add_argument('--evaluate', dest='bEVAL', action='store_true', help='Set to evaluate the VLAD results')
     parser.add_argument('--visualise', dest='bVISUAL', action='store_true', help='Set to visualise the VLAD results')
@@ -108,10 +112,12 @@ if __name__ == '__main__':
     print('\nLoad pre-trained segmentation KP-FCNN')
     print('*************************************')
     t = time.time()
-    print('ScanNetSLAM, WITHOUT color')
-    chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
-    # print('ScanNetSLAM, WITH color')
-    # chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
+    if FLAGS.bNoColor:
+        print('ScanNetSLAM, WITHOUT color')
+        chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), w/o color, batch 8, 1st feat 64, 0.04-2.0
+    else:
+        print('ScanNetSLAM, WITH color')
+        chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = 9 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
@@ -186,6 +192,7 @@ if __name__ == '__main__':
         # update parameters for recog training
         config.num_feat = FLAGS.num_feat
         config.optimiser = FLAGS.optimiser
+        config.loss = FLAGS.loss
         config.max_in_points = 9000
         config.max_val_points = 9000
         config.num_neg_samples = 6

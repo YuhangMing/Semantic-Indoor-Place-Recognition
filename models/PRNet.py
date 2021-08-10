@@ -95,39 +95,39 @@ class PRNet(nn.Module):
 
         return x
     
-    def loss(self, a, p, n, n_star=None):
-        # ## test with self implemented triplet loss
-        # loss, _ = self.TripletLoss(a, p, n)
-        ## test with self implemented lazy quadruptet loss
-        loss = self.LazyQuadrupletLoss(a, p, n, n_star)
+    def loss(self, loss_function, a, p, n, n_star=None):
+        if loss_function == 'LzQuad':
+            loss = self.LazyQuadrupletLoss(a, p, n, n_star)
+        elif loss_function == 'LzTrip':
+            loss, _ = self.TripletLoss(a, p, n, lazy=True)
+        elif loss_function == 'Trip':
+            loss, _ = self.TripletLoss(a, p, n)
+        else:
+            raise ValueError(('Unknown loss function', loss_function))
+        
         return loss
 
-        # a: single tensor
-        # p: list of 2 tensors
-        # n: list of 18 tensors
-        # n_star: single tensor
-        
-        # cat to meet tripletloss input requirement
-        n_neg_samples = self.num_neg_samples
-        anc = torch.cat(2*n_neg_samples*[a], dim=0)
-        # [pos0, ..., pos0, pos1, ..., pos1]
-        pos0 = torch.cat(n_neg_samples*[p[0]], dim=0)
-        pos1 = torch.cat(n_neg_samples*[p[1]], dim=0)
-        pos = torch.cat( (pos0, pos1), dim=0 )
-        # [neg0, ... neg8, neg0, ..., neg8]
-        neg = n[0]
-        for nIdx in range(1, n_neg_samples):
-            neg = torch.cat( (neg, n[nIdx]), dim=0)
-        neg = torch.cat( (neg, neg), dim=0 )
-        if not n_star is None:
-            neg_star = torch.cat(2*n_neg_samples*[n_star], dim=0)
-        
+        # # a: single tensor
+        # # p: list of 2 tensors
+        # # n: list of 18 tensors
+        # # n_star: single tensor
+        # # cat to meet tripletloss input requirement
+        # n_neg_samples = self.num_neg_samples
+        # anc = torch.cat(2*n_neg_samples*[a], dim=0)
+        # # [pos0, ..., pos0, pos1, ..., pos1]
+        # pos0 = torch.cat(n_neg_samples*[p[0]], dim=0)
+        # pos1 = torch.cat(n_neg_samples*[p[1]], dim=0)
+        # pos = torch.cat( (pos0, pos1), dim=0 )
+        # # [neg0, ... neg8, neg0, ..., neg8]
+        # neg = n[0]
+        # for nIdx in range(1, n_neg_samples):
+        #     neg = torch.cat( (neg, n[nIdx]), dim=0)
+        # neg = torch.cat( (neg, neg), dim=0 )
+        # if not n_star is None:
+        #     neg_star = torch.cat(2*n_neg_samples*[n_star], dim=0)
         # # Triplet Loss
         # loss = self.criterion(anc, pos, neg)
-        # Quadruplet Loss
-        loss = self.LazyQuadrupletLoss(anc, pos, neg, neg_star)
-
-        return loss
+        # return loss
 
     def LazyQuadrupletLoss(self, anc, pos, neg, neg_star, p=2.0, alpha=0.5, beta=0.2):
         # implementation of lazy quadruplet loss 
@@ -156,26 +156,22 @@ class PRNet(nn.Module):
         loss = triplet_loss + second_loss
         return loss
 
-        if anc.size() != pos.size() or anc.size() != neg.size() or anc.size() != neg_star.size():
-            raise ValueError('Size of input tensors should match!!', anc.size(), pos.size(), neg.size(), neg_star.size())
+        # if anc.size() != pos.size() or anc.size() != neg.size() or anc.size() != neg_star.size():
+        #     raise ValueError('Size of input tensors should match!!', anc.size(), pos.size(), neg.size(), neg_star.size())
+        # # get distance values
+        # delta_pos = torch.cdist(anc, pos, p=p)
+        # delta_neg = torch.cdist(pos, neg, p=p)
+        # delta_neg_star = torch.cdist(neg_star, neg, p=p)
+        # zeros = torch.zeros(delta_pos.size())
+        # bCUDA = delta_pos.get_device()
+        # if bCUDA >= 0 and torch.cuda.is_available():
+        #     zeros = zeros.to(torch.device(bCUDA))
+        # # get the loss value
+        # first_term = torch.max( torch.max(zeros, delta_pos + alpha - delta_neg) )
+        # second_term = torch.max( torch.max(zeros, delta_pos + beta - delta_neg_star) )
+        # loss = first_term + second_term
+        # return loss
 
-        # get distance values
-        delta_pos = torch.cdist(anc, pos, p=p)
-        delta_neg = torch.cdist(pos, neg, p=p)
-        delta_neg_star = torch.cdist(neg_star, neg, p=p)
-        zeros = torch.zeros(delta_pos.size())
-        bCUDA = delta_pos.get_device()
-        if bCUDA >= 0 and torch.cuda.is_available():
-            zeros = zeros.to(torch.device(bCUDA))
-
-        # get the loss value
-        first_term = torch.max( torch.max(zeros, delta_pos + alpha - delta_neg) )
-        second_term = torch.max( torch.max(zeros, delta_pos + beta - delta_neg_star) )
-        loss = first_term + second_term
-
-        return loss
-
-    
     def TripletLoss(self, anc, pos, neg, p=2.0, margin=0.5, lazy=False):
         # anc: anchor tensor
         # pos: list of positive tensors (x2)
