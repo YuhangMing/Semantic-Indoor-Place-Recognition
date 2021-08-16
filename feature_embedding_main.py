@@ -316,7 +316,8 @@ if __name__ == '__main__':
         # print('Triplet loss, feat_num = 3')
         # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
         print('Quadruplet loss, feat_num = 5')
-        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
         chkp_idx = 3        # USE ckpt_0020

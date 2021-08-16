@@ -401,7 +401,7 @@ class Config:
             text_file.write('KPlog = {:s}\n'.format(self.KPlog))
             text_file.write('num_feat = {:d}\n'.format(self.num_feat))
             text_file.write('optimiser = {:s}\n'.format(self.optimiser))
-            text_file.write('loss_function = {:d}\n'.format(self.loss))
+            text_file.write('loss_function = {:s}\n'.format(self.loss))
             text_file.write('num_neg_samples = {:d}\n'.format(self.num_neg_samples))
 
     def print_current(self):
@@ -511,7 +511,7 @@ class Config:
         print('KPlog = {:s}'.format(self.KPlog))
         print('num_feat = {:d}'.format(self.num_feat))
         print('optimiser = {:s}'.format(self.optimiser))
-        print('loss_function = {:d}\n'.format(self.loss))
+        print('loss_function = {:s}\n'.format(self.loss))
         print('num_neg_samples = {:d}\n'.format(self.num_neg_samples))
         print('# -----------------------------------#\n')
 

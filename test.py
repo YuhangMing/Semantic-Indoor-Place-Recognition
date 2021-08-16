@@ -232,12 +232,12 @@ if __name__ == '__main__':
     #### plot loss ####
     # Log_folders = ['Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-21_12-56-15']
     # Log_legends = ['Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg, full epoch']
-    Log_folders = ['Recog_Log_2021-07-02_03-51-36', 'Recog_Log_2021-07-07_06-41-29',
-                   'Recog_Log_2021-07-01_07-55-26', 'Recog_Log_2021-07-29_11-25-46',
-                   'pnvlad_comparison']
-    Log_legends = ['Triplet, 5feats-RGB-Xpts', 'Triplet, 3feats-RGB-Xpts',
-                   'LZ-Quad, 5feats-RGB-Xpts', 'LZ-Quad, 5feats-noRGB-4096pts',
-                   'PN-VLAD, 1feat-noRGB-4096pts']
+    # Log_folders = ['Recog_Log_2021-07-02_03-51-36', 'Recog_Log_2021-07-07_06-41-29',
+    #                'Recog_Log_2021-07-01_07-55-26', 'Recog_Log_2021-07-29_11-25-46']
+    # Log_legends = ['Triplet, 5feats-RGB-Xpts', 'Triplet, 3feats-RGB-Xpts',
+    #                'LZ-Quad, 5feats-RGB-Xpts', 'LZ-Quad, 5feats-noRGB-4096pts']
+    Log_folders = ['pnvlad_comp_oxford', 'pnvlad_comp_scannet']
+    Log_legends = ['oxford, 1feat-noRGB-4096pts', 'scannet, 1feat-noRGB-4096pts']
     Log_colors = ['r', 'b', 'g', 'y', 'c']
     avg_step = 35000
     all_x = []
