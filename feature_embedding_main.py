@@ -316,8 +316,8 @@ if __name__ == '__main__':
         # print('Triplet loss, feat_num = 3')
         # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
         print('Quadruplet loss, feat_num = 5')
-        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
-        chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
+        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        # chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
         chkp_idx = 3        # USE ckpt_0020
@@ -395,7 +395,7 @@ if __name__ == '__main__':
         # print('Calibed neighbor limit:', val_sampler.dataset.neighborhood_limits)
         # print('Done in {:.1f}s\n'.format(time.time() - t))
 
-        db_path = join(test_dataset.input_pcd_path, 'database')
+        db_path = join(test_dataset.path, 'VLAD_triplets', 'database')
         if not exists(db_path):
             makedirs(db_path)
         
@@ -410,6 +410,9 @@ if __name__ == '__main__':
         # pcd_file = join(db_path, 'point_clouds.txt')
         bIdfId_file = join(db_path, 'file_id.txt')
         bIdbId_file = join(db_path, 'batch_id.txt')
+
+        # pcd_info_file = join(test_dataset.path, 'VLAD_triplets', 'vlad_test_DQ.txt')
+        # pcd_info = []   # [file_name, world_centroid, db or query]
 
         if not exists(vlad_file):
             print('\nGenerate database')
@@ -468,6 +471,9 @@ if __name__ == '__main__':
                     batchInd_batchId.append(i)
 
                     db_count += 1
+
+                    # # add pcd info
+                    # pcd_info.append( [zmFile[1], 'database', ori_cntr] )
                 else:
                     # initialise boolean variable
                     bAddToDB = True
@@ -521,6 +527,12 @@ if __name__ == '__main__':
                         batchInd_batchId.append(i)
 
                         db_count += 1
+                    #     # add pcd info
+                    #     pcd_info.append( [zmFile[1], 'database', ori_cntr] )
+                    # else:
+                    #     # add pcd info
+                    #     pcd_info.append( [zmFile[1], 'query', ori_cntr] )
+                            
                 # print('stored center number:', len(database_cntr[tmp_fmid[0]]))
             database_vect = np.array(database_vect)
 
@@ -539,6 +551,8 @@ if __name__ == '__main__':
             with open(bIdbId_file, "wb") as f:
                 pickle.dump(batchInd_batchId, f)
             print('VLAD Databased SAVED to Files:', join(db_path, 'XXXX.txt'))
+            # with open(pcd_info_file, 'wb') as f:
+            #     pickle.dump(pcd_info, f)
 
         else:
             # load the database

@@ -73,8 +73,17 @@ class ScannetTripleDataset(PointCloudDataset):
 
         # Dataset folder
         # self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        self.path = '/media/adam/Datasets/datasets/ScanNet'
+        # self.path = '/media/adam/Datasets/datasets/ScanNet'
+        self.path = '/home/adam/Yuhang/Dataset/ScanNetPR'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
+        
+        # # pcd without zero-meaning coordinates
+        # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
+        # pcd with zero-meaning coordinates
+        self.data_path = join(self.path, 'scans')
+        # self.input_pcd_path = join(self.path, 'scans', 'input_pcd_0mean')
+        print("point cloud path:", self.data_path)
+        
 
         # Type of task conducted on this dataset
         self.dataset_task = 'registration'
@@ -207,11 +216,6 @@ class ScannetTripleDataset(PointCloudDataset):
             self.in_R = config.val_radius
 
         # load sub cloud from the HD mesh w.r.t. cameras
-        # # pcd without zero-meaning coordinates
-        # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
-        # pcd with zero-meaning coordinates
-        self.input_pcd_path = join(self.path, 'scans', 'input_pcd_0mean')
-        print("point cloud path:", self.input_pcd_path)
         self.prepare_point_cloud()
 
         # get all_inds as 2D array
@@ -670,8 +674,8 @@ class ScannetTripleDataset(PointCloudDataset):
         depth frame
         """
 
-        if not exists(self.input_pcd_path):
-            raise ValueError('Missing input pcd folder:', self.input_pcd_path)
+        if not exists(self.data_path):
+            raise ValueError('Missing input pcd folder:', self.data_path)
         
         # Load pre-processed files [all tasks are stored in a single file]
         # positive and negative indices for each pcd
@@ -701,9 +705,9 @@ class ScannetTripleDataset(PointCloudDataset):
             # print('   to ', scene_pcd_path)
             
             # path to original ScanNet data
-            scene_folder = join(self.path, 'scans', scene)
+            scene_folder = join(self.data_path, scene)
             # path to processed ScanNet point cloud
-            scene_pcd_path = join(self.input_pcd_path, scene)
+            scene_pcd_path = join(scene_folder, 'input_pcd_0mean')
             if not exists(scene_pcd_path):
                 raise ValueError('Missing scene folder:', scene_pcd_path)
 
