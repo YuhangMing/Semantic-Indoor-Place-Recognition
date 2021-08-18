@@ -23,24 +23,33 @@ Database contains 236 pcds, and test with the rest 3372 pcds.
 Distance threshold is 3.0m.
   My PRNet with point cloud and color
     Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset.
-  - Top 1 precision = 0.5714709371293001
-  - Top 2 precision = 0.6699288256227758
-  - Top 3 precision = 0.727164887307236
+  - Top 1 recall = 0.5714709371293001
+  - Top 2 recall = 0.6699288256227758
+  - Top 3 recall = 0.727164887307236
   My PRNet with point cloud but no color
-  - Top 1 precision = 0.3962040332147094
-  - Top 2 precision = 0.5091933570581257
-  - Top 3 precision = 0.5613879003558719
+  - Top 1 recall = 0.3962040332147094
+  - Top 2 recall = 0.5091933570581257
+  - Top 3 recall = 0.5613879003558719
+  My PRNet trained freom sratch
+
   My PRNet with PN-VLAD input
     fixed number of input pts (4096), no color.
     Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full datasts.
-  - Top 1 precision = 0.31583629893238435
-  - Top 2 precision = 0.42289442467378413
-  - Top 3 precision = 0.4893238434163701
+  - Top 1 recall = 0.31583629893238435
+  - Top 2 recall = 0.42289442467378413
+  - Top 3 recall = 0.4893238434163701
+
+  NetVLAD
+    Adam, Triplet loss, 224x224 rgb image input
+  - Top 1 reall = 0.39501779359430605
+  - Top 2 reall = 0.5290628706998813
+  - Top 3 reall = 0.6094306049822064
+
   PointNetVLAD
-    Adam, Lazy Quadruplet loss
-  - Top 1 precision = 0.05308422301304864
-  - Top 2 precision = 0.07502965599051008
-  - Top 3 precision = 0.09994068801897983
+    Adam, Lazy Quadruplet loss, 4096-pts no color
+  - Top 1 recall = 0.05308422301304864
+  - Top 2 recall = 0.07502965599051008
+  - Top 3 recall = 0.09994068801897983
   PointNetVLAD on oxford dataset
   - Average Recall @N:		[72.24728146 79.72052977 83.44896214 85.8413399  87.72200765 89.0107485 90.16922633 91.04257789 91.77895218 92.42769845 92.99980283 93.51470435 93.94726012 94.32063172 94.63218011 94.95490474 95.24041707 95.5013082 95.70916566 95.94346817 96.13816227 96.32665551 96.48638493 96.65255812 96.79261296]
   - Average Similarity:		28.605686
@@ -54,45 +63,45 @@ Distance threshold is 3.0m.
     with distance threshold 3.0
 chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'	# Adam, Triplet loss, 5 feats, 35000 steps, full dataset.
    Epoch10 - Evaluation Results 
- - Top 1 precision = 0.41399327833791627
- - Top 2 precision = 0.5548426520012221
- - Top 3 precision = 0.6257256339749465
+ - Top 1 recall = 0.41399327833791627
+ - Top 2 recall = 0.5548426520012221
+ - Top 3 recall = 0.6257256339749465
    Epoch15 - Evaluation Results 
- - Top 1 precision = 0.4641002138710663
- - Top 2 precision = 0.5869233119462267
- - Top 3 precision = 0.663305835624809
+ - Top 1 recall = 0.4641002138710663
+ - Top 2 recall = 0.5869233119462267
+ - Top 3 recall = 0.663305835624809
    Epoch20 - Evaluation Results 
- - Top 1 precision = 0.4634891536816376
- - Top 2 precision = 0.5857011915673694
- - Top 3 precision = 0.6648334860983807
+ - Top 1 recall = 0.4634891536816376
+ - Top 2 recall = 0.5857011915673694
+ - Top 3 recall = 0.6648334860983807
 
 chosen_log = 'results/Recog_Log_2021-07-01_07-48-10'	# Adam, Triplet loss, 3 feats, 35000 steps, full dataset.
    Epoch10 - Evaluation Results 
- - Top 1 precision = 0.3748854262144821
- - Top 2 precision = 0.5025970058050718
- - Top 3 precision = 0.5722578673999389
+ - Top 1 recall = 0.3748854262144821
+ - Top 2 recall = 0.5025970058050718
+ - Top 3 recall = 0.5722578673999389
    Epoch15 - Evaluation Results
- - Top 1 precision = 0.3846623892453407
- - Top 2 precision = 0.5022914757103575
- - Top 3 precision = 0.5786739993889398
+ - Top 1 recall = 0.3846623892453407
+ - Top 2 recall = 0.5022914757103575
+ - Top 3 recall = 0.5786739993889398
    Epoch20 - Evaluation Results
- - Top 1 precision = 0.3944393522761992
- - Top 2 precision = 0.5117629086465016
- - Top 3 precision = 0.591811793461656
+ - Top 1 recall = 0.3944393522761992
+ - Top 2 recall = 0.5117629086465016
+ - Top 3 recall = 0.591811793461656
 
 chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'	# Adam, Quadruplet loss, 5 feats, 35000 steps, full dataset.
    Epoch10 - Evaluation Results
- - Top 1 precision = 0.5080965475099297
- - Top 2 precision = 0.6128933699969447
- - Top 3 precision = 0.6718606782768103
+ - Top 1 recall = 0.5080965475099297
+ - Top 2 recall = 0.6128933699969447
+ - Top 3 recall = 0.6718606782768103
    Epoch15 - Evaluation Results
- - Top 1 precision = 0.5465933394439352
- - Top 2 precision = 0.641918728994806
- - Top 3 precision = 0.6972196761380997
+ - Top 1 recall = 0.5465933394439352
+ - Top 2 recall = 0.641918728994806
+ - Top 3 recall = 0.6972196761380997
    Epoch20 - Evaluation Results 
- - Top 1 precision = 0.5707302169263673
- - Top 2 precision = 0.6645279560036663
- - Top 3 precision = 0.7265505652306752
+ - Top 1 recall = 0.5707302169263673
+ - Top 2 recall = 0.6645279560036663
+ - Top 3 recall = 0.7265505652306752
 
 
 
@@ -102,9 +111,9 @@ TRAINING: 129,767 point clouds
     with distance threshold 2.0
 chosen_log = 'results/Recog_Log_2021-06-18_21-54-24'    # Adam 0.0001, 5 feats, epoch 50, 600 steps, full dataset
 Evaluation Results
- - Top 1 precision = 0.3242605296156967
- - Top 2 precision = 0.4427970789997787
- - Top 3 precision = 0.5139042561038578
+ - Top 1 recall = 0.3242605296156967
+ - Top 2 recall = 0.4427970789997787
+ - Top 3 recall = 0.5139042561038578
 
 
 chosen_log = 'results/Recog_Log_2021-06-20_12-47-14'    # Adam 0.0001, 3 feats, epoch 50, 600 steps, full dataset
@@ -113,20 +122,20 @@ Killed half way.
 
 chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'    # Adam 0.0001, 3 feats, epoch 50, 5000 steps, full dataset
 Evaluation Results
- - Top 1 precision = 0.3882127314302574
- - Top 2 precision = 0.5133141550490522
- - Top 3 precision = 0.5881832263775172
+ - Top 1 recall = 0.3882127314302574
+ - Top 2 recall = 0.5133141550490522
+ - Top 3 recall = 0.5881832263775172
 
 
 chosen_log = 'results/Recog_Log_2021-06-21_05-27-47'    # Adam 0.0001, 5 feats, epoch 10, 5000 steps, full dataset
 Evaluation Results
- - Top 1 precision = 0.39529394408792506
- - Top 2 precision = 0.5096997860883676
- - Top 3 precision = 0.5833886553072214
+ - Top 1 recall = 0.39529394408792506
+ - Top 2 recall = 0.5096997860883676
+ - Top 3 recall = 0.5833886553072214
 chosen_log = 'results/Recog_Log_2021-06-23_03-51-32'    # Adam 0.0001, 5 feats, epoch 30, 5000 steps, full dataset
 Evaluation Results 
- - Top 1 precision = 0.5362543335546213
- - Top 2 precision = 0.6484472965995427
- - Top 3 precision = 0.711514346831895
+ - Top 1 recall = 0.5362543335546213
+ - Top 2 recall = 0.6484472965995427
+ - Top 3 recall = 0.711514346831895
 
 
