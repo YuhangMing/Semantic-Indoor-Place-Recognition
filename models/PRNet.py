@@ -188,6 +188,7 @@ class PRNet(nn.Module):
         # print('best_pos', best_pos_val)
 
         # Compute the hinge loss
+        # doesn't need to be multiple of 2, stack to the same size is fine
         if self.num_neg_samples % 2 != 0:
             raise ValueError('num of negative samples should be integal multiplication of 2.')
         anc = torch.cat(int(self.num_neg_samples/2) * [anc], dim=0)
