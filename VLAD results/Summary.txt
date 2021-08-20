@@ -22,6 +22,7 @@ test
 Database contains 236 pcds, and test with the rest 3372 pcds. 
 Distance threshold is 3.0m.
   My PRNet, Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset
+chkp_20
     With pcd of various pts number and color, trained semantically
   - Top 1 recall = 0.5714709371293001
   - Top 2 recall = 0.6699288256227758
@@ -31,25 +32,44 @@ Distance threshold is 3.0m.
   - Top 2 recall = 0.5091933570581257
   - Top 3 recall = 0.5613879003558719
     With pcd of various pts number and color, trained from sratch
-
+  - Top 1 precision = 0.5388493475682088
+  - Top 2 precision = 0.6444246737841044
+  - Top 3 precision = 0.6897983392645315
     With pcd of fixed pts number (4096) but no color (PN-VLAD input), trained semantically.
   - Top 1 recall = 0.31583629893238435
   - Top 2 recall = 0.42289442467378413
   - Top 3 recall = 0.4893238434163701
 
   NetVLAD, Adam, 224x224 rgb image input
+chkp_20
     Triplet loss, no feature reduction at last layer
   - Top 1 reall = 0.39501779359430605
   - Top 2 reall = 0.5290628706998813
   - Top 3 reall = 0.6094306049822064
     Lazy quadruplet loss, no feature reduction at last layer
-
+  - Top 1 reall = 0.3718861209964413
+  - Top 2 reall = 0.5118623962040332
+  - Top 3 reall = 0.6023131672597865
     Lazy quadruplet loss, feature reduction at last layer
   - Top 1 reall = 0.22419928825622776
   - Top 2 reall = 0.34134045077105574
   - Top 3 reall = 0.42170818505338076
+chkp_30
+    Triplet loss, no feature reduction at last layer
+  - Top 1 reall = 0.40569395017793597
+  - Top 2 reall = 0.5255041518386714
+  - Top 3 reall = 0.6014234875444839
+    Lazy quadruplet loss, no feature reduction at last layer
+  - Top 1 reall = 0.35794780545670224
+  - Top 2 reall = 0.5088967971530249
+  - Top 3 reall = 0.5934163701067615
+    Lazy quadruplet loss, feature reduction at last layer
+  - Top 1 reall = 0.21767497034400948
+  - Top 2 reall = 0.33807829181494664
+  - Top 3 reall = 0.4148873072360617
 
   PointNetVLAD, Adam, Lazy Quadruplet loss, 4096-pts no color
+chkp_20
     Trained on scannetpr dataset (our dataset)
   - Top 1 recall = 0.05308422301304864
   - Top 2 recall = 0.07502965599051008
