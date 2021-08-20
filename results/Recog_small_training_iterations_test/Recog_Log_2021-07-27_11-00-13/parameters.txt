@@ -1,0 +1,84 @@
+# -----------------------------------#
+# Parameters of the training session #
+# -----------------------------------#
+
+# Input parameters
+# ****************
+
+dataset = ScannetSLAM
+dataset_task = registration
+num_classes = 20
+in_points_dim = 3
+in_features_dim = 1
+in_radius = 2.000000
+input_threads = 0
+
+# Model parameters
+# ****************
+
+architecture = simple resnetb resnetb_strided resnetb resnetb resnetb_strided resnetb_deformable resnetb_deformable resnetb_deformable_strided resnetb_deformable resnetb_deformable resnetb_deformable_strided resnetb_deformable resnetb_deformable nearest_upsample unary nearest_upsample unary nearest_upsample unary nearest_upsample unary
+equivar_mode = 
+invar_mode = 
+num_layers = 5
+first_features_dim = 64
+use_batch_norm = 1
+batch_norm_momentum = 0.020000
+
+segmentation_ratio = 1.000000
+
+# KPConv parameters
+# *****************
+
+first_subsampling_dl = 0.040000
+num_kernel_points = 15
+conv_radius = 2.500000
+deform_radius = 6.000000
+fixed_kernel_points = center
+KP_extent = 1.000000
+KP_influence = linear
+aggregation_mode = sum
+modulated = 0
+n_frames = 1
+max_in_points = 9000
+
+max_val_points = 9000
+
+val_radius = 2.000000
+
+# Training parameters
+# *******************
+
+learning_rate = 0.000100
+momentum = 0.980000
+lr_decay_epochs = 1:1.000000 2:1.000000 3:1.000000 4:1.000000 5:1.000000 6:1.000000 7:0.900000 8:1.000000 9:1.000000 10:1.000000 11:1.000000 12:1.000000 13:1.000000 14:0.900000 15:1.000000 16:1.000000 17:1.000000 18:1.000000 19:1.000000 20:1.000000 21:0.900000 22:1.000000 23:1.000000 24:1.000000 25:1.000000 26:1.000000 27:1.000000 28:0.900000 29:1.000000 30:1.000000 31:1.000000 32:1.000000 33:1.000000 34:1.000000 35:0.900000 36:1.000000 37:1.000000 38:1.000000 39:1.000000 40:1.000000 41:1.000000 42:0.900000 43:1.000000 44:1.000000 45:1.000000 46:1.000000 47:1.000000 48:1.000000 49:0.900000 50:1.000000 51:1.000000 52:1.000000 53:1.000000 54:1.000000 55:1.000000 56:0.900000 57:1.000000 58:1.000000 59:1.000000 60:1.000000 61:1.000000 62:1.000000 63:0.900000 64:1.000000 65:1.000000 66:1.000000 67:1.000000 68:1.000000 69:1.000000 70:0.900000 71:1.000000 72:1.000000 73:1.000000 74:1.000000 75:1.000000 76:1.000000 77:0.900000 78:1.000000 79:1.000000 80:1.000000 81:1.000000 82:1.000000 83:1.000000 84:0.900000 85:1.000000 86:1.000000 87:1.000000 88:1.000000 89:1.000000 90:1.000000 91:0.900000 92:1.000000 93:1.000000 94:1.000000 95:1.000000 96:1.000000 97:1.000000 98:0.900000 99:1.000000 100:1.000000 101:1.000000 102:1.000000 103:1.000000 104:1.000000 105:0.900000 106:1.000000 107:1.000000 108:1.000000 109:1.000000 110:1.000000 111:1.000000 112:0.900000 113:1.000000 114:1.000000 115:1.000000 116:1.000000 117:1.000000 118:1.000000 119:0.900000 120:1.000000 121:1.000000 122:1.000000 123:1.000000 124:1.000000 125:1.000000 126:0.900000 127:1.000000 128:1.000000 129:1.000000 130:1.000000 131:1.000000 132:1.000000 133:0.900000 134:1.000000 135:1.000000 136:1.000000 137:1.000000 138:1.000000 139:1.000000 140:0.900000 141:1.000000 142:1.000000 143:1.000000 144:1.000000 145:1.000000 146:1.000000 147:0.900000 148:1.000000 149:1.000000 150:1.000000 151:1.000000 152:1.000000 153:1.000000 154:0.900000 155:1.000000 156:1.000000 157:1.000000 158:1.000000 159:1.000000 160:1.000000 161:0.900000 162:1.000000 163:1.000000 164:1.000000 165:1.000000 166:1.000000 167:1.000000 168:0.900000 169:1.000000 170:1.000000 171:1.000000 172:1.000000 173:1.000000 174:1.000000
+grad_clip_norm = 100.000000
+
+augment_symmetries = 1 0 0
+augment_rotation = vertical
+augment_noise = 0.001000
+augment_occlusion = none
+augment_occlusion_ratio = 0.200000
+augment_occlusion_num = 1
+augment_scale_anisotropic = 1
+augment_scale_min = 0.800000
+augment_scale_max = 1.200000
+augment_color = 1.000000
+
+weight_decay = 0.001000
+segloss_balance = none
+class_w =
+deform_fitting_mode = point2point
+deform_fitting_power = 1.000000
+deform_lr_factor = 0.100000
+repulse_extent = 1.200000
+batch_num = 1
+val_batch_num = 1
+max_epoch = 175
+epoch_steps = 5000
+validation_size = 50
+checkpoint_gap = 35
+
+KPlog = results/Log_2021-06-16_02-31-04/checkpoints/chkp_0500.tar
+num_feat = 5
+optimiser = Adam
+num_neg_samples = 6
