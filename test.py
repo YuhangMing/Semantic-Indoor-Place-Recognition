@@ -232,13 +232,20 @@ if __name__ == '__main__':
     #### plot loss ####
     # Log_folders = ['Recog_Log_2021-06-23_03-51-32', 'Recog_Log_2021-06-21_05-17-29', 'Recog_Log_2021-06-21_05-49-38', 'Recog_Log_2021-06-21_12-56-15']
     # Log_legends = ['Adam, 5_feat, 6_neg', 'Adam, 3_feat, 8_neg', 'SGD, 5_feat, 6_neg', 'Adam, 5_feat, 6_neg, full epoch']
-    # Log_folders = ['Recog_Log_2021-07-02_03-51-36', 'Recog_Log_2021-07-07_06-41-29',
-    #                'Recog_Log_2021-07-01_07-55-26', 'Recog_Log_2021-07-29_11-25-46']
-    # Log_legends = ['Triplet, 5feats-RGB-Xpts', 'Triplet, 3feats-RGB-Xpts',
-    #                'LZ-Quad, 5feats-RGB-Xpts', 'LZ-Quad, 5feats-noRGB-4096pts']
-    Log_folders = ['pnvlad_comp_oxford', 'pnvlad_comp_scannet']
-    Log_legends = ['oxford, 1feat-noRGB-4096pts', 'scannet, 1feat-noRGB-4096pts']
-    Log_colors = ['r', 'b', 'g', 'y', 'c']
+    Log_folders = ['Recog_Log_2021-07-02_03-51-36', 'Recog_Log_2021-07-07_06-41-29',
+                   'Recog_Log_2021-07-01_07-55-26', 'Recog_Log_2021-07-29_11-25-46',
+                   'Recog_Log_2021-07-29_17-53-02', 'Recog_Log_2021-08-17_23-32-30']
+    Log_legends = ['Triplet, 5feats-RGB-Xpts, semantic', 'Triplet, 3feats-RGB-Xpts, semantic',
+                   'LZ-Quad, 5feats-RGB-Xpts, semantic', 'LZ-Quad, 5feats-noRGB-Xpts, semantic',
+                   'LZ-Quad, 5feats-RGB-Xpts, scratch', 'LZ-Quad, 5feats-noRGB-4096pts, scratch']
+    # Log_folders = ['pnvlad_comp_oxford', 'pnvlad_comp_scannet']
+    # Log_legends = ['oxford, 1feat-noRGB-4096pts', 'scannet, 1feat-noRGB-4096pts']
+    # Log_folders = ['netvlad_comp_scannet/Aug17_16-48-01_vgg16_netvlad', 
+    #                'netvlad_comp_scannet/Aug18_18-36-54_vgg16_netvlad', 
+    #                'netvlad_comp_scannet/Aug19_13-27-35_vgg16_netvlad']
+    # Log_legends = ['Triplet, no dim reduction', 'LZ-Quad, dim reduction', 'LZ-Quad, no dim reduction']
+    Log_colors = ['r', 'b', 'g', 'c', 'm', 'y']
+    all_pts = 20*35000
     avg_step = 35000
     all_x = []
     all_y = []
@@ -258,6 +265,21 @@ if __name__ == '__main__':
                     # one_loss = float(line[1][5:])
                     # one_loss = float(line[1][2:-1])
                     one_loss = float(line[-1]) / 100
+                    tmp += one_loss
+                    if count % avg_step ==0:
+                        steps.append(count/avg_step)
+                        loss.append(tmp/avg_step)
+                        tmp = 0
+                    count += 1
+        elif 'netvlad' in folder:
+            with open('results/'+folder+'/log_train.txt') as f:
+                lines = f.readlines()
+                tmp = 0
+                for line in lines:
+                    if not 'loss' in line:
+                        continue
+                    line = line.rstrip().split(' ')
+                    one_loss = float(line[3])
                     tmp += one_loss
                     if count % avg_step ==0:
                         steps.append(count/avg_step)
@@ -288,7 +310,7 @@ if __name__ == '__main__':
     plt.legend()
     plt.title('Loss per epoch')
     plt.xlabel('Epoches')
-    # plt.xlim([0, 500])
+    plt.xlim([0, all_pts / avg_step])
     plt.ylabel('Loss')
     plt.grid()
     plt.show()
