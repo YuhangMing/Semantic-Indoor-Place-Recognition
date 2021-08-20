@@ -32,9 +32,9 @@ chkp_20
   - Top 2 recall = 0.5091933570581257
   - Top 3 recall = 0.5613879003558719
     With pcd of various pts number and color, trained from sratch
-  - Top 1 precision = 0.5388493475682088
-  - Top 2 precision = 0.6444246737841044
-  - Top 3 precision = 0.6897983392645315
+  - Top 1 recall = 0.5388493475682088
+  - Top 2 recall = 0.6444246737841044
+  - Top 3 recall = 0.6897983392645315
     With pcd of fixed pts number (4096) but no color (PN-VLAD input), trained semantically.
   - Top 1 recall = 0.31583629893238435
   - Top 2 recall = 0.42289442467378413
