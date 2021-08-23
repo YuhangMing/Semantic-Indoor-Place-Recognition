@@ -79,10 +79,7 @@ chkp_20
   - Average Similarity:		28.605686
   - Average Top 1% Recall:	85.71562304239968
 
-
-
-
------------------------------------------------------------------------------------------------------------------
+----Some wrong setup leading to a smaller test set (missing 108 test point clouds)-----------------------------
     with 227 stored pcd 3273 test pcd 
     with distance threshold 3.0
 chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'	# Adam, Triplet loss, 5 feats, 35000 steps, full dataset.
@@ -129,7 +126,7 @@ chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'	# Adam, Quadruplet loss, 5 
 
 
 
------------------------------------------------------------------------------------------------------------------
+-----------denser test set------------------------------------------------------------------------------------
 TRAINING: 129,767 point clouds
     with 425 stored pcd 13557 test pcd 
     with distance threshold 2.0
