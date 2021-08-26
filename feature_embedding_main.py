@@ -198,7 +198,7 @@ if __name__ == '__main__':
         config.num_neg_samples = 6
         config.batch_num = 1
         config.val_batch_num = 1
-        config.max_epoch = 25
+        config.max_epoch = 30
         config.epoch_steps = 35000
         config.checkpoint_gap = 5
         # config.max_epoch = 175
@@ -316,7 +316,8 @@ if __name__ == '__main__':
         # print('Triplet loss, feat_num = 3')
         # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
         print('Quadruplet loss, feat_num = 5')
-        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        chosen_log = 'results/Recog_Log_2021-08-20_22-39-43'
         # chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
@@ -761,7 +762,7 @@ if __name__ == '__main__':
             thre_string = 'With distance threshold' + str(dist_thred) + '\n'
             result_strings = ''
             for k, accum1 in enumerate(accu_results):
-                result_string = ' - Top ' + str(k+1) + ' precision = ' + str(accum1/num_test)
+                result_string = ' - Top ' + str(k+1) + ' recall = ' + str(accum1/num_test)
                 print(result_string)
                 result_strings += (result_string + '\n')
             

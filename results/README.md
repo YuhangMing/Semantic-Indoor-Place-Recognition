@@ -25,6 +25,7 @@ Log_2021-06-16_02-42-30: ScanNet SLAM with color features.    	epoch119+500-600.
 	
 
 [VLAD, Full ScanNet Dataset, pcd selected at 0.7m apart]
+Following are trained without point cloud size limits
 **Recog_Log_2021-07-02_03-51-36**:
 	Adam, 5 feats, 6 neg samples, 50 epochs, 35000 step size, Triplet loss
 	First 6 epochs merged from `Recog_Log_2021-06-27_13-47-12`
@@ -42,6 +43,7 @@ Log_2021-06-16_02-42-30: ScanNet SLAM with color features.    	epoch119+500-600.
 	Started at e02-i0
 	Stopped at e020-i13977
 
+Following are trained with point cloud size limits
 **Recog_Log_2021-07-29_11-25-46**:
 	Adam, 5 feats, 6 neg samples, 25 epochs, 35000 step size, Quadruplet loss
 	4096 fixed input pts number, no color
@@ -56,3 +58,6 @@ Log_2021-06-16_02-42-30: ScanNet SLAM with color features.    	epoch119+500-600.
 	With color, trained from scratch
 	`Full results refer to the scratch folder`
 
+**Recog_Log_2021-08-20_22-39-43**
+	Adam, 5 feats, 6 neg samples, 50 epochs, 35000 step size, Quadruplet loss
+	same setup as `Recog_Log_2021-07-01_07-55-26` but with additional pcd size limits.
