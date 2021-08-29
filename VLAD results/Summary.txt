@@ -22,11 +22,16 @@ test
 Database contains 236 pcds, and test with the rest 3372 pcds. 
 Distance threshold is 3.0m.
   My PRNet, Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset
-chkp_20
     With pcd of various pts number and color, trained semantically
+  chkp_20
   - Top 1 recall = 0.5714709371293001
   - Top 2 recall = 0.6699288256227758
   - Top 3 recall = 0.727164887307236
+  chkp_30
+  - Top 1 recall = 0.5928232502965599
+  - Top 2 recall = 0.6880189798339265
+  - Top 3 recall = 0.7402135231316725  
+chkp_20
     same setup but with pcd point number limits
   - Top 1 recall = 0.564650059311981
   - Top 2 recall = 0.66429418742586
@@ -84,12 +89,20 @@ chkp_20
   - Average Top 1% Recall:	85.71562304239968
 
   MinkLoc3d
-chkp_40
-
-Dataset: oxford                                                                                                       
-Avg. top 1% recall: 98.02   Avg. similarity: 18.6246   Avg. recall @N:                                                
-[93.60009444 96.58257973 97.526546   98.0336588  98.32066963 98.56092983 98.71564571 98.83066339 98.91911281 98.99533526 99.06839869 99.11670387 99.15456078 99.21032402 99.25011798 99.29243193 99.32569785 99.36618784 99.40854528 99.43555337 99.45270509 99.47233322 99.49892639 99.50839695 99.52985227]
-
+chkp_40, Adam, Hard Triplet loss, 4096-pts no color
+    With learning rate start from 1e-3
+  - Top 1 recall = 0.0050415183867141165
+  - Top 2 recall = 0.01601423487544484
+  - Top 3 recall = 0.02491103202846975   
+    With learning rate start from 1e-4
+  - Top 1 recall = 0.03232502965599051
+  - Top 2 recall = 0.05871886120996441
+  - Top 3 recall = 0.07888493475682087
+    Dataset: oxford, lr 1e-3                                                                                             
+  - Avg. recall @N: [93.60009444 96.58257973 97.526546   98.0336588  98.32066963 98.56092983 98.71564571 98.83066339 98.91911281 98.99533526 99.06839869 99.11670387 99.15456078 99.21032402 99.25011798 99.29243193 99.32569785 99.36618784 99.40854528 99.43555337 99.45270509 99.47233322 99.49892639 99.50839695 99.52985227]
+  - Avg. similarity: 18.6246   
+  - Avg. top 1% recall: 98.02   
+    
 
 
 
@@ -140,7 +153,7 @@ chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'	# Adam, Quadruplet loss, 5 
 
 
 
------------------------------------------------------------------------------------------------------------------
+-----------denser test set------------------------------------------------------------------------------------
 TRAINING: 129,767 point clouds
     with 425 stored pcd 13557 test pcd 
     with distance threshold 2.0

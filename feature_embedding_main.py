@@ -321,7 +321,7 @@ if __name__ == '__main__':
         # chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-        chkp_idx = 3        # USE ckpt_0020
+        chkp_idx = 5        # USE ckpt_0030
         print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
         # Find all checkpoints in the chosen training folder
