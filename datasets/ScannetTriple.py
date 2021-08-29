@@ -83,7 +83,6 @@ class ScannetTripleDataset(PointCloudDataset):
         self.data_path = join(self.path, 'scans')
         # self.input_pcd_path = join(self.path, 'scans', 'input_pcd_0mean')
         print("point cloud path:", self.data_path)
-        
 
         # Type of task conducted on this dataset
         self.dataset_task = 'registration'
@@ -225,7 +224,6 @@ class ScannetTripleDataset(PointCloudDataset):
         # NOTE 2nd is the index of frames NOT the actual frame id
         self.all_inds = np.vstack((seq_inds, frame_inds)).T 
 
-
         ##### MODIFY HERE????
         ############################
         # Batch selection parameters
@@ -249,9 +247,9 @@ class ScannetTripleDataset(PointCloudDataset):
         else:
             N = int(np.ceil(config.validation_size * self.batch_num * 1.1))
         self.num_neg_samples = config.num_neg_samples
-        print(config.validation_size)
-        print(self.batch_num)
-        print('N = ', N)
+        # print(config.validation_size)
+        # print(self.batch_num)
+        # print('N = ', N)
 
         # current epoch id
         self.epoch_i = torch.from_numpy(np.zeros((1,), dtype=np.int64))
@@ -697,12 +695,12 @@ class ScannetTripleDataset(PointCloudDataset):
         # Loop through all scenes to retrieve data for current task
         pcd_count = 0
         for i, scene in enumerate(self.scenes):
-            num_scene_pcds = len(all_scene_pcds[scene])
-            pcd_count += num_scene_pcds
-            print('scene_id_name', i, scene, 'num_of_pcds', num_scene_pcds)
-            print('Processing:', scene, '(', i+1 , '/', len(self.scenes), ')') 
-            # print('  from', scene_folder)
-            # print('   to ', scene_pcd_path)
+            pcd_count += len(all_scene_pcds[scene])
+            print('{}%'.format(int(100*i/len(self.scenes))), flush=True, end='\r')
+            # print('scene_id_name', i, scene, 'num_of_pcds', num_scene_pcds)
+            # print('Processing:', scene, '(', i+1 , '/', len(self.scenes), ')') 
+            # # print('  from', scene_folder)
+            # # print('   to ', scene_pcd_path)
             
             # path to original ScanNet data
             scene_folder = join(self.data_path, scene)
@@ -719,7 +717,7 @@ class ScannetTripleDataset(PointCloudDataset):
             all_negId = []      # list of negative pcd Indices
             for j, subpcd_file in enumerate(all_scene_pcds[scene]):
                 actual_frame_id = int(subpcd_file[13:-8])
-                print('{}%'.format(int(100*j/num_scene_pcds)), flush=True, end='\r')
+                # print('{}%'.format(int(100*j/num_scene_pcds)), flush=True, end='\r')
                 frame_subpcd_file = join(scene_pcd_path, subpcd_file)
 
                 # get pose of current frame
@@ -743,7 +741,7 @@ class ScannetTripleDataset(PointCloudDataset):
                 # double check if the point cloud file exists
                 if not exists(frame_subpcd_file):
                     raise ValueError('Missing subpcd file:', frame_subpcd_file)
-            print('100 %')
+            # print('100 %')
 
             self.files.append(scene_files)
             self.poses.append(scene_poses)

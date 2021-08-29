@@ -59,5 +59,8 @@ Following are trained with point cloud size limits
 	`Full results refer to the scratch folder`
 
 **Recog_Log_2021-08-20_22-39-43**
-	Adam, 5 feats, 6 neg samples, 50 epochs, 35000 step size, Quadruplet loss
+	Adam, 5 feats, 6 neg samples, 30 epochs, 35000 step size, Quadruplet loss
 	same setup as `Recog_Log_2021-07-01_07-55-26` but with additional pcd size limits.
+**Recog_Log_2021-08-29_13-46-24**
+	Continue training from `Recog_Log_2021-08-20_22-39-43`.
+

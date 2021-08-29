@@ -258,7 +258,7 @@ if __name__ == '__main__':
         # print(reg_net.named_parameters())
 
         # Choose here if you want to start training from a previous snapshot (None for new training)
-        previous_training_path = ''
+        previous_training_path = 'Recog_Log_2021-08-20_22-39-43'
 
         # Choose index of checkpoint to start from. If None, uses the latest chkp
         chkp_idx = None # override here
