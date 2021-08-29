@@ -88,6 +88,7 @@ chkp_20
   - Average Similarity:		28.605686
   - Average Top 1% Recall:	85.71562304239968
 
+<<<<<<< HEAD
   MinkLoc3d
 chkp_40, Adam, Hard Triplet loss, 4096-pts no color
     With learning rate start from 1e-3
@@ -107,6 +108,9 @@ chkp_40, Adam, Hard Triplet loss, 4096-pts no color
 
 
 -----------------------------------------------------------------------------------------------------------------
+=======
+----Some wrong setup leading to a smaller test set (missing 108 test point clouds)-----------------------------
+>>>>>>> f7f96b7f19d1b5f1396b38b9df841bbfd11400f5
     with 227 stored pcd 3273 test pcd 
     with distance threshold 3.0
 chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'	# Adam, Triplet loss, 5 feats, 35000 steps, full dataset.
