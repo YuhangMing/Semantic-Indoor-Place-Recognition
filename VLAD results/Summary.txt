@@ -32,10 +32,10 @@ Distance threshold is 3.0m.
   - Top 1 recall = 0.564650059311981
   - Top 2 recall = 0.66429418742586
   - Top 3 recall = 0.7173784104389087
-  chkp_30
-  - Top 1 recall = 0.5928232502965599
-  - Top 2 recall = 0.6880189798339265
-  - Top 3 recall = 0.7402135231316725  
+  chkp_40
+  - Top 1 recall = 0.608540925266904
+  - Top 2 recall = 0.7007710557532622
+  - Top 3 recall = 0.7565243179122183
     With pcd of various pts number and color, trained from sratch
   chkp_20
   - Top 1 recall = 0.5388493475682088
