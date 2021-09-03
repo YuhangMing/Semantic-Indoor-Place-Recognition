@@ -45,6 +45,10 @@ Distance threshold is 3.0m.
   - Top 1 precision = 0.554995552920249
   - Top 2 precision = 0.6522383634746517
   - Top 3 precision = 0.6981915209012748
+  chkp_60
+  - Top 1 precision = 0.566429418742586
+  - Top 2 precision = 0.6648873072360617
+  - Top 3 precision = 0.715005931198102
 chkp_20
     With pcd of various pts number but no color, trained semantically
   - Top 1 recall = 0.3962040332147094
