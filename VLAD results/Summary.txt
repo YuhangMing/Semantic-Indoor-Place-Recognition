@@ -30,13 +30,7 @@ Distance threshold is 3.0m.
   chkp_30
   - Top 1 recall = 0.5928232502965599
   - Top 2 recall = 0.6880189798339265
-  - Top 3 recall = 0.7402135231316725  
-  chkp_60
-  - Top 1 recall = 0.6112099644128114
-  - Top 2 recall = 0.7022538552787663
-  - Top 3 recall = 0.7505931198102017
-
-chkp_20
+  - Top 3 recall = 0.7402135231316725
     same setup but with pcd point number limits
   chkp_20
   - Top 1 recall = 0.564650059311981
@@ -45,7 +39,11 @@ chkp_20
   chkp_40
   - Top 1 recall = 0.608540925266904
   - Top 2 recall = 0.7007710557532622
-  - Top 3 recall = 0.7565243179122183
+  - Top 3 recall = 0.7565243179122183  
+  chkp_60
+  - Top 1 recall = 0.6115065243179122
+  - Top 2 recall = 0.7019572953736655
+  - Top 3 recall = 0.7526690391459074
     With pcd of various pts number and color, trained from sratch
   chkp_20
   - Top 1 recall = 0.5388493475682088
