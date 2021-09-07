@@ -22,8 +22,8 @@ test
 Database contains 236 pcds, and test with the rest 3372 pcds. 
 Distance threshold is 3.0m.
   My PRNet, Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset
-    With pcd of various pts number and color, trained semantically
   chkp_20
+    With pcd of various pts number and color, trained semantically
   - Top 1 recall = 0.5714709371293001
   - Top 2 recall = 0.6699288256227758
   - Top 3 recall = 0.727164887307236
@@ -38,17 +38,32 @@ Distance threshold is 3.0m.
 
 chkp_20
     same setup but with pcd point number limits
+  chkp_20
   - Top 1 recall = 0.564650059311981
   - Top 2 recall = 0.66429418742586
   - Top 3 recall = 0.7173784104389087
+  chkp_40
+  - Top 1 recall = 0.608540925266904
+  - Top 2 recall = 0.7007710557532622
+  - Top 3 recall = 0.7565243179122183
+    With pcd of various pts number and color, trained from sratch
+  chkp_20
+  - Top 1 recall = 0.5388493475682088
+  - Top 2 recall = 0.6444246737841044
+  - Top 3 recall = 0.6897983392645315
+  chkp_40
+  - Top 1 precision = 0.554995552920249
+  - Top 2 precision = 0.6522383634746517
+  - Top 3 precision = 0.6981915209012748
+  chkp_60
+  - Top 1 precision = 0.566429418742586
+  - Top 2 precision = 0.6648873072360617
+  - Top 3 precision = 0.715005931198102
+chkp_20
     With pcd of various pts number but no color, trained semantically
   - Top 1 recall = 0.3962040332147094
   - Top 2 recall = 0.5091933570581257
   - Top 3 recall = 0.5613879003558719
-    With pcd of various pts number and color, trained from sratch
-  - Top 1 recall = 0.5388493475682088
-  - Top 2 recall = 0.6444246737841044
-  - Top 3 recall = 0.6897983392645315
     With pcd of fixed pts number (4096) but no color (PN-VLAD input), trained semantically.
   - Top 1 recall = 0.31583629893238435
   - Top 2 recall = 0.42289442467378413
@@ -111,8 +126,13 @@ chkp_40, Adam, Hard Triplet loss, 4096-pts no color
   - Avg. recall @N: [93.60009444 96.58257973 97.526546   98.0336588  98.32066963 98.56092983 98.71564571 98.83066339 98.91911281 98.99533526 99.06839869 99.11670387 99.15456078 99.21032402 99.25011798 99.29243193 99.32569785 99.36618784 99.40854528 99.43555337 99.45270509 99.47233322 99.49892639 99.50839695 99.52985227]
   - Avg. similarity: 18.6246   
   - Avg. top 1% recall: 98.02   
-    
 
+  BASELINE: SIFT + BoW
+  - Top 1 recall = 0.16162514827995256
+  - Top 2 recall = 0.2117437722419929
+  - Top 3 recall = 0.24377224199288255
+  - Top 4 recall = 0.2734282325029656
+  - Top 5 recall = 0.30219454329774614
 
 -----------------------------------------------------------------------------------------------------------------
 ----Some wrong setup leading to a smaller test set (missing 108 test point clouds)-----------------------------
