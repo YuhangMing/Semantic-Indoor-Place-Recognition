@@ -258,7 +258,8 @@ if __name__ == '__main__':
         # print(reg_net.named_parameters())
 
         # Choose here if you want to start training from a previous snapshot (None for new training)
-        previous_training_path = 'Recog_Log_2021-08-20_22-39-43'
+        # previous_training_path = 'Recog_Log_2021-08-20_22-39-43'
+        previous_training_path = ''
 
         # Choose index of checkpoint to start from. If None, uses the latest chkp
         chkp_idx = None # override here
@@ -317,11 +318,11 @@ if __name__ == '__main__':
         # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
         print('Quadruplet loss, feat_num = 5')
         # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
-        chosen_log = 'results/Recog_Log_2021-08-20_22-39-43'
+        chosen_log = 'results/Recog_Log_2021-08-29_13-46-24'
         # chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-        chkp_idx = 5        # USE ckpt_0030
+        chkp_idx = None        # USE current_ckpt, i.e. chkp_60
         print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
         # Find all checkpoints in the chosen training folder
@@ -396,7 +397,7 @@ if __name__ == '__main__':
         # print('Calibed neighbor limit:', val_sampler.dataset.neighborhood_limits)
         # print('Done in {:.1f}s\n'.format(time.time() - t))
 
-        db_path = join(test_dataset.path, 'VLAD_triplets', 'database')
+        db_path = join(chosen_log, 'database')
         if not exists(db_path):
             makedirs(db_path)
         
@@ -676,7 +677,7 @@ if __name__ == '__main__':
                 
                 ## Use un-meaned pcd file
                 query_file = test_loader.dataset.files[q_fmid[0]][q_fmid[1]].split('input_pcd_0mean')
-                log_strings += (str(q_fmid[0]) + '_' + str(q_fmid[1]) + ': ' + query_file[1] + '\n')
+                log_strings += (str(q_fmid[0]) + '_' + str(q_fmid[1]) + ': ' + query_file[1][1:] + '\n')
                 oriPCD = query_file[0] + 'input_pcd' + query_file[1]
                 oriData = read_ply(oriPCD)
                 oriPts = np.vstack((oriData['x'], oriData['y'], oriData['z'])).astype(np.float32).T # Nx3
@@ -687,19 +688,20 @@ if __name__ == '__main__':
                 one_result = []
                 for k, id in enumerate(ind[0]):
                     r_fmid = batchInd_fileId[id]
-                    log_strings += ('  ' + str(r_fmid[0]) + '_' + str(r_fmid[1]))
-                    if r_fmid[0] != q_fmid[0]:
-                        one_result.append(0)
-                        log_strings += ': FAIL\n'
-                        continue
-
+                    log_strings += ('--' + str(r_fmid[0]) + '_' + str(r_fmid[1]))
+                    
                     # get k-th retrieved point cloud
                     retri_file = test_loader.dataset.files[r_fmid[0]][r_fmid[1]]
+                    retri_file = retri_file.split('input_pcd_0mean')
                     r_pose = test_loader.dataset.poses[r_fmid[0]][r_fmid[1]]
+                    
+                    if r_fmid[0] != q_fmid[0]:
+                        one_result.append(0)
+                        log_strings += ': FAIL ' + retri_file[1][1:] + '\n'
+                        continue
                     print(k, retri_file)
 
                     ## Use un-meaned pcd file
-                    retri_file = retri_file.split('input_pcd_0mean')
                     retriPCD = retri_file[0] + 'input_pcd' + retri_file[1]
                     retriData = read_ply(retriPCD)
                     retriPts = np.vstack((retriData['x'], retriData['y'], retriData['z'])).astype(np.float32).T # Nx3
@@ -712,15 +714,14 @@ if __name__ == '__main__':
 
                     # compute distance between centroids
                     dist = np.linalg.norm(q_cent - r_cent)
-                    log_strings += (': ' + str(dist))
                     ## single threshold with only distance
                     if dist < dist_thred:
-                        log_strings += ' SUCCESS\n'
+                        log_strings += ': SUCCESS ' + retri_file[1][1:] + ' ' + str(dist) + ' \n'
                         for fill in range(k, 3):
                             one_result.append(1)
                         break
                     else:
-                        log_strings += ' FAIL\n'
+                        log_strings += ': FAIL ' + retri_file[1][1:] + ' ' + str(dist) + ' \n'
                         one_result.append(0)
                     # ## double threshold with distance and overlap
                     # if dist < dist_thred * test_loader.dataset.in_R:

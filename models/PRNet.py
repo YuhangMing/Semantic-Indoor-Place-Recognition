@@ -43,8 +43,15 @@ class PRNet(nn.Module):
         if self.num_feat == 5:
             self.FC_1 = UnaryBlock(in_size, feature_size, False, 0)
             self.FC_2 = UnaryBlock(in_size*2, feature_size, False, 0)
-        self.FC_3 = UnaryBlock(in_size*(2**2), feature_size, False, 0)
-        self.FC_4 = UnaryBlock(in_size*(2**3), feature_size, False, 0)
+            self.FC_3 = UnaryBlock(in_size*(2**2), feature_size, False, 0)
+            self.FC_4 = UnaryBlock(in_size*(2**3), feature_size, False, 0)
+        elif self.num_feat == 3:
+            self.FC_3 = UnaryBlock(in_size*(2**2), feature_size, False, 0)
+            self.FC_4 = UnaryBlock(in_size*(2**3), feature_size, False, 0)
+        elif self.num_feat == 1:
+            pass
+        else: 
+            raise ValueError('unsupport feature number')
 
         # NetVLAD layer
         cluster_size = 64  # K
@@ -71,18 +78,23 @@ class PRNet(nn.Module):
         # print('Input feature size per layer:', feat_vec[0].size(), feat_vec[1].size(), feat_vec[2].size(), 
         #                                  feat_vec[3].size(), feat_vec[4].size())
         # concatenate feature vectors from each conv block
-        x_3 = self.FC_3(feat_vec[2])
-        x_4 = self.FC_4(feat_vec[3])
+        
         x_5 = feat_vec[4]
         if self.num_feat == 5:
             # print('using all 5 block features')
             x_1 = self.FC_1(feat_vec[0])
             x_2 = self.FC_2(feat_vec[1])
+            x_3 = self.FC_3(feat_vec[2])
+            x_4 = self.FC_4(feat_vec[3])
             # (N1+N2+N3+N4+N5 = N, 1024) [1, 11667, 1024]
             x = torch.cat((x_1, x_2, x_3, x_4, x_5), 0)
         elif self.num_feat == 3:
+            x_3 = self.FC_3(feat_vec[2])
+            x_4 = self.FC_4(feat_vec[3])
             # print('using last 3 block features')
             x = torch.cat((x_3, x_4, x_5), 0)
+        elif self.num_feat == 1:
+            x = x_5
         else:
             raise ValueError('unsupport feature number')
         

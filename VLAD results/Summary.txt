@@ -31,6 +31,11 @@ Distance threshold is 3.0m.
   - Top 1 recall = 0.5928232502965599
   - Top 2 recall = 0.6880189798339265
   - Top 3 recall = 0.7402135231316725  
+  chkp_60
+  - Top 1 recall = 0.6112099644128114
+  - Top 2 recall = 0.7022538552787663
+  - Top 3 recall = 0.7505931198102017
+
 chkp_20
     same setup but with pcd point number limits
   - Top 1 recall = 0.564650059311981
