@@ -111,7 +111,7 @@ if __name__ == '__main__':
     # chosen_log = 'results/Log_2021-06-11_04-20-14'  # => SemanticKitti (full), rigid kernel
         
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = 4
+    chkp_idx = 9 # chkp_500
 
     # Deal with 'last_XXXXXX' choices
     chosen_log = model_choice(chosen_log)
@@ -266,11 +266,11 @@ if __name__ == '__main__':
     print('\nStart test')
     print('**********')
     # Perform prediction
-    if config.dataset_task == 'cloud_segmentaion':
-        # tester.cloud_segmentation_test(net, test_loader, config, 0)
-        tester.segmentation_with_return(net, test_loader, config, 0)
-    elif config.dataset_task == 'slam_segmentation':
+    if config.dataset_task == 'slam_segmentation':
         tester.slam_segmentation_test(net, test_loader, config, 0)
+    # elif config.dataset_task == 'cloud_segmentaion':
+    #     # tester.cloud_segmentation_test(net, test_loader, config, 0)
+    #     tester.segmentation_with_return(net, test_loader, config, 0)
     else:
         raise ValueError('Unsupported dataset task: ' + config.dataset_task)
     # # Forward pass

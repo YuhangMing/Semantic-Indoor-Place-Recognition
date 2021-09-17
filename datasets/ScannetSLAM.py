@@ -71,7 +71,8 @@ class ScannetSLAMDataset(PointCloudDataset):
         # Dataset folder
         # self.path = '../../Data/SemanticKitti'
         # self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        self.path = '/media/adam/Datasets/datasets/ScanNet'
+        self.path = '/media/yohann/74742E99742E5DDC/dataset/ScanNetPR'
+        # self.path = '/media/adam/Datasets/datasets/ScanNet'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
 
         # Type of task conducted on this dataset
@@ -92,10 +93,10 @@ class ScannetSLAMDataset(PointCloudDataset):
             self.scenes = np.sort(np.loadtxt(scene_file_name, dtype=np.str))
             # self.clouds = [self.scenes[0]]  # test
         elif self.set == 'test':
-            scene_file_name = join(data_split_path, 'scannetv2_test.txt')
-            self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
+            # scene_file_name = join(data_split_path, 'scannetv2_test.txt')
+            # self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
             # print((self.scenes))
-            self.scenes = [self.scenes[4]]
+            self.scenes = ['scene0720_00']
             print((self.scenes))
             # self.scenes = [np.loadtxt(scene_file_name, dtype=np.str)]   # Single test file
         else:
@@ -221,7 +222,7 @@ class ScannetSLAMDataset(PointCloudDataset):
             self.in_R = config.val_radius
 
         # create sub cloud from the HD mesh w.r.t. cameras
-        self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
+        self.input_pcd_path = join(self.path, 'scans')
         self.prepare_point_cloud()
 
         # print(self.fids)
@@ -544,7 +545,8 @@ class ScannetSLAMDataset(PointCloudDataset):
             self.intrinsics.append(sceneK)
             self.nframes.append(sceneNFrames)
 
-            scene_pcd_path = join(self.input_pcd_path, scene)
+            scene_pcd_path = join(self.input_pcd_path, scene, 'input_pcd_0mean')
+            # scene_pcd_path = join(self.input_pcd_path, scene)
             # print('Processing: ', scene) 
             # print('  from', scene_folder)
             # print('   to ', scene_pcd_path)
@@ -606,7 +608,8 @@ class ScannetSLAMDataset(PointCloudDataset):
             scene_files = []
             scene_poses = []
             scene_fids = []
-            for j in range(0, self.nframes[-1], 15):
+            # for j in range(0, self.nframes[-1], 15):
+            for j in [0, 135, 2055, 2520, 2565]:
                 frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
                 frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
                 pose = np.loadtxt(join(scene_folder, 'pose', str(j)+'.txt'))
