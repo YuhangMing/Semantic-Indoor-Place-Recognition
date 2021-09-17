@@ -74,8 +74,8 @@ class ScannetTripleDataset(PointCloudDataset):
         # Dataset folder
         # self.path = '/media/yohann/Datasets/datasets/ScanNet'
         # self.path = '/media/adam/Datasets/datasets/ScanNet'
-        self.path = '/home/adam/Yuhang/Dataset/ScanNetPR'
-        # self.path = '/home/yuhang/ScanNetPR'
+        # self.path = '/home/adam/Yuhang/Dataset/ScanNetPR'
+        self.path = '/home/yuhang/ScanNetPR'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
         
         # # pcd without zero-meaning coordinates
