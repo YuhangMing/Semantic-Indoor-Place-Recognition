@@ -119,6 +119,11 @@ scene0713_00_2190: /home/yuhang/ScanNetPR/scans/scene0713_00/pnvlad_pcd/scene071
 --scene0803_00_0: FAIL
 --scene0733_00_810: FAIL
 --scene0781_00_0: FAIL
+
+scene0713_00_2190: scans/scene0713_00/pnvlad_pcd/scene0713_00_2190_sub.bin
+--scene0733_00_810: FAIL
+--scene0719_00_345: FAIL
+--scene0711_00_0: FAIL
 scene0713_00_2220: scans/scene0713_00/pnvlad_pcd/scene0713_00_2220_sub.bin
 --scene0775_00_915: FAIL
 --scene0737_00_0: FAIL
