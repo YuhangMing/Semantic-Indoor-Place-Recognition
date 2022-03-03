@@ -71,7 +71,8 @@ class ScannetSLAMDataset(PointCloudDataset):
         # Dataset folder
         # self.path = '../../Data/SemanticKitti'
         # self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        self.path = '/media/yohann/74742E99742E5DDC/dataset/ScanNetPR'
+        # self.path = '/media/yohann/Datasets/datasets/ScanNetPR'
+        self.path = '/media/yohann/Datasets/datasets/ScanNet'
         # self.path = '/media/adam/Datasets/datasets/ScanNet'
         # self.path = '/mnt/nas_7/datasets/ScanNet'
 
@@ -91,7 +92,7 @@ class ScannetSLAMDataset(PointCloudDataset):
         elif self.set == 'validation':
             scene_file_name = join(data_split_path, 'scannetv2_val.txt')
             self.scenes = np.sort(np.loadtxt(scene_file_name, dtype=np.str))
-            # self.clouds = [self.scenes[0]]  # test
+            self.scenes = [self.scenes[0]]  # test
         elif self.set == 'test':
             # scene_file_name = join(data_split_path, 'scannetv2_test.txt')
             # self.scenes = np.loadtxt(scene_file_name, dtype=np.str)
@@ -343,17 +344,18 @@ class ScannetSLAMDataset(PointCloudDataset):
             #################
 
             current_file = self.files[s_ind][f_ind]
-            # print(' -', current_file)
+            print(' -', current_file)
             o_pts = None
             o_labels = None
             if self.set == 'validation':
-                data = read_ply(current_file)
+                data = read_ply(current_file[:-4]+'_sub.ply')
                 points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
                 if points.shape[0] < 2:
                     raise ValueError("Empty Polygan Mesh !!!!")
                 
                 colors = np.vstack((data['red'], data['green'], data['blue'])).T
                 labels = data['class']  # zeros for test set
+                print("labels in ScannetSLAM.py", points.shape, colors.shape, labels.shape, labels)
                 
                 # ## Every frame point cloud is process only once 
                 # ## using a sphere with in_radius around the center of the input point cloud 
@@ -608,8 +610,8 @@ class ScannetSLAMDataset(PointCloudDataset):
             scene_files = []
             scene_poses = []
             scene_fids = []
-            # for j in range(0, self.nframes[-1], 15):
-            for j in [0, 135, 2055, 2520, 2565]:
+            for j in range(0, self.nframes[-1], 15):
+            # for j in [0, 135, 2055, 2520, 2565]:
                 frame_pcd_file = join(scene_pcd_path, scene+'_'+str(j)+'.ply')
                 frame_subpcd_file = join(scene_pcd_path, scene+'_'+str(j)+'_sub.ply')
                 pose = np.loadtxt(join(scene_folder, 'pose', str(j)+'.txt'))

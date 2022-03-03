@@ -152,7 +152,8 @@ class PRNet(nn.Module):
         # compute p_distance
         neg_star = torch.cat(self.num_neg_samples * [neg_star], dim=0)
         neg = torch.cat(neg, dim=0)
-        delta_neg = self.p_distance(anc, neg, p=p)
+        # delta_neg = self.p_distance(anc, neg, p=p)
+        delta_neg = self.p_distance(neg_star, neg, p=p)
         # margined difference
         diff = best_pos + beta - delta_neg
         # zeros and set to device

@@ -846,7 +846,7 @@ class ModelTester:
         if config.saving:
             test_path = join('test', config.saving_path.split('/')[-1])
 
-            # print("\n\ntest_path:", test_path)
+            print("\n\ntest_path:", test_path)
             
             if not exists(test_path):
                 makedirs(test_path)
@@ -856,6 +856,8 @@ class ModelTester:
 
         if test_loader.dataset.set == 'validation':
             for folder in ['val_predictions', 'val_probs']:
+                print("sub_folders:", join(test_path, folder))
+
                 if not exists(join(test_path, folder)):
                     makedirs(join(test_path, folder))
         else:
@@ -866,7 +868,7 @@ class ModelTester:
         # Init validation container
         all_f_preds = []
         all_f_labels = []
-        if test_loader.dataset.set == 'validation':
+        if test_loader.dataset.set == 'validation' and test_loader.dataset.name == 'SemanticKitti':
             for i, seq_frames in enumerate(test_loader.dataset.frames):
                 all_f_preds.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
                 all_f_labels.append([np.zeros((0,), dtype=np.int32) for _ in seq_frames])
@@ -1010,7 +1012,7 @@ class ModelTester:
                                                                                  axis=1)].astype(np.int32)
 
                         # Save some of the frame pots
-                        if f_ind % 20 == 0:
+                        if f_ind % 1 == 0:
                             if test_loader.dataset.name == 'SemanticKitti':
                                 seq_path = join(test_loader.dataset.path, 'sequences', test_loader.dataset.scenes[s_ind])
                                 velo_file = join(seq_path, 'velodyne', test_loader.dataset.frames[s_ind][f_ind] + '.bin')
@@ -1029,10 +1031,12 @@ class ModelTester:
                             #pots = test_loader.dataset.f_potentials[s_ind][f_ind]
                             pots = np.zeros((0,))
                             if pots.shape[0] > 0:
+                                print('saving with pots')
                                 write_ply(predpath,
                                           [frame_points[:, :3], frame_labels, frame_preds, pots],
                                           ['x', 'y', 'z', 'gt', 'pre', 'pots'])
                             else:
+                                print('saving without pots')
                                 write_ply(predpath,
                                           [frame_points[:, :3], frame_labels, frame_preds],
                                           ['x', 'y', 'z', 'gt', 'pre'])
@@ -1046,9 +1050,9 @@ class ModelTester:
                                       [frame_points[:, :3], frame_probs_uint8],
                                       ['x', 'y', 'z'] + lbl_names)
 
-                        # keep frame preds in memory
-                        all_f_preds[s_ind][f_ind] = frame_preds
-                        all_f_labels[s_ind][f_ind] = frame_labels
+                        # # keep frame preds in memory
+                        # all_f_preds[s_ind][f_ind] = frame_preds
+                        # all_f_labels[s_ind][f_ind] = frame_labels
 
                     else:
 
@@ -1127,7 +1131,7 @@ class ModelTester:
                 # Update last_min
                 last_min += 1
 
-                if test_loader.dataset.set == 'validation' and last_min % 1 == 0:
+                if test_loader.dataset.set == 'validation' and test_loader.dataset.name == 'SemanticKitti' and last_min % 1 == 0:
 
                     #####################################
                     # Results on the whole validation set

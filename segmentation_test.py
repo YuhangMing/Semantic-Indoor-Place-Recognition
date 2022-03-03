@@ -185,7 +185,8 @@ if __name__ == '__main__':
     # test_sampler = ScannetSampler(test_dataset)
     # collate_fn = ScannetCollate
     #### ScannetSLAM
-    test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
+    test_dataset = ScannetSLAMDataset(config, 'validation', balance_classes=False)
+    # test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
     test_sampler = ScannetSLAMSampler(test_dataset)
     collate_fn = ScannetSLAMCollate
     # #### SemanticKitti

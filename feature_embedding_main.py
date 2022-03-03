@@ -317,10 +317,10 @@ if __name__ == '__main__':
         # print('Triplet loss, feat_num = 3')
         # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
         print('Quadruplet loss, feat_num = 5')
-        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
+        chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
         # chosen_log = 'results/Recog_Log_2021-08-29_13-46-24'
         # chosen_log = 'results/Recog_Log_2021-07-29_17-53-02'
-        chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'
+        # chosen_log = 'results/Recog_Log_2021-06-21_05-17-29'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
         chkp_idx = None        # USE current_ckpt, i.e. chkp_60
@@ -413,6 +413,9 @@ if __name__ == '__main__':
         # pcd_file = join(db_path, 'point_clouds.txt')
         bIdfId_file = join(db_path, 'file_id.txt')
         bIdbId_file = join(db_path, 'batch_id.txt')
+        # dbInfo_file = join(db_path, 'database_info.txt')
+        # with open(dbInfo_file, 'w') as f:
+        #     f.write('# index_db index_all file_name\n')
 
         # pcd_info_file = join(test_dataset.path, 'VLAD_triplets', 'vlad_test_DQ.txt')
         # pcd_info = []   # [file_name, world_centroid, db or query]
@@ -430,7 +433,6 @@ if __name__ == '__main__':
             # database_pcds = {}
             db_count = 0
             for i, batch in enumerate(test_loader):
-                # print(i)
                 # continue if empty input list is given
                 # caused by empty positive neighbors
                 if len(batch.points) == 0:
@@ -448,6 +450,7 @@ if __name__ == '__main__':
                 # tmp_pts = batch.points[0].cpu().detach().numpy()         # np.ndarray, (n, 3)
                 tmp_pose = test_loader.dataset.poses[tmp_fmid[0]][tmp_fmid[1]]
                 # tmp_pts = (tmp_pose[:3, :3] @ tmp_pts.T).T + tmp_pose[:3, 3]
+                # print('Processing...', test_loader.dataset.files[tmp_fmid[0]][tmp_fmid[1]].split('/')[-1], i)
 
                 ## Load un-meaned pcd
                 zmFile = test_loader.dataset.files[tmp_fmid[0]][tmp_fmid[1]].split('input_pcd_0mean')
@@ -461,7 +464,7 @@ if __name__ == '__main__':
                 tmp_cntr = ori_cntr
                 # print(tmp_fmid, tmp_cntr, ori_cntr)
                 if tmp_fmid[0] not in database_cntr.keys():
-                    print('ADDING NEW PCD TO DB:', tmp_fmid)
+                    print('- ADDING NEW PCD TO DB:', tmp_fmid, db_count)
                     batch.to(device)
                     # get the VLAD descriptor
                     feat = seg_net.inter_encoder_features(batch)
@@ -472,6 +475,10 @@ if __name__ == '__main__':
                     # database_pcds[tmp_fmid[0]] = [tmp_pts]
                     batchInd_fileId.append(tmp_fmid)
                     batchInd_batchId.append(i)
+                    # with open(dbInfo_file, 'a') as f:
+                    #     f.write(f'{db_count} {i} ' + 
+                    #             test_loader.dataset.files[tmp_fmid[0]][tmp_fmid[1]].split('/')[-1]
+                    #             + '\n')
 
                     db_count += 1
 
@@ -517,7 +524,7 @@ if __name__ == '__main__':
                     #     # print('NN test done in {:.6f}s'.format(time.time() - tt))
 
                     if bAddToDB:
-                        print('ADDING NEW PCD TO DB:', tmp_fmid)
+                        print('- ADDING NEW PCD TO DB:', tmp_fmid, db_count)
                         batch.to(device)
                         # get the VLAD descriptor
                         feat = seg_net.inter_encoder_features(batch)
@@ -528,6 +535,10 @@ if __name__ == '__main__':
                         # database_pcds[tmp_fmid[0]].append(tmp_pts)
                         batchInd_fileId.append(tmp_fmid)
                         batchInd_batchId.append(i)
+                        # with open(dbInfo_file, 'a') as f:
+                        #     f.write(f'{db_count} {i} ' + 
+                        #             test_loader.dataset.files[tmp_fmid[0]][tmp_fmid[1]].split('/')[-1]
+                        #             + '\n')
 
                         db_count += 1
                     #     # add pcd info
@@ -644,21 +655,21 @@ if __name__ == '__main__':
             if break_cnt > 4:
                 break
 
-            print('processing pcd no.', i)
+            # print('processing pcd no.', i)
 
             # skip if it's already stored in database
             # if i in batchInd_batchId or i%30 != 0:  # every 450 frame 
             if i in batchInd_batchId:
-                print('Database frame, skipped.\n')
+                print('Database frame, skipped.')
                 continue
         
             tt = time.time()
             q_fmid = batch.frame_inds.cpu().detach().numpy()[0]     # list, [scene_id, frame_id]
             # Get VLAD descriptor
             batch.to(device)
-            print(' - Segmentation Layers')
+            # print(' - Segmentation Layers')
             feat = seg_net.inter_encoder_features(batch)
-            print(' - VLAD Layers')
+            # print(' - VLAD Layers')
             vlad = reg_net(feat).cpu().detach().numpy()     # ndarray of (1, 256)
             # search for the closest match in DB
             dist, ind = search_tree.query(vlad, k=3)
@@ -745,7 +756,7 @@ if __name__ == '__main__':
                     #         one_result.append(0)
                 eval_results.append(np.array(one_result))
 
-            print('current pcd finished in {:.4f}s\n'.format(time.time() - tt))
+            # print('current pcd finished in {:.4f}s'.format(time.time() - tt))
         print('Done in {:.1f}s\n'.format(time.time() - t))
         if FLAGS.bEVAL:
             eval_results = np.array(eval_results)

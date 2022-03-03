@@ -228,7 +228,22 @@ if __name__ == '__main__':
     #     count += 1
     # plt.show()
 
-    # #### Point cloud io ####
+    #### Point cloud io ####
+    path = '/media/yohann/Datasets/datasets/ScanNetPR'
+    vlad_pn_file = join(path, 'VLAD_triplets', 'vlad_pos_neg.txt')
+    with open(vlad_pn_file, "rb") as f:
+        # dict, key = scene string, val = list of pairs of (list pos, list neg)
+        all_scene_pos_neg = pickle.load(f)
+    print(all_scene_pos_neg['scene0011_00'][7])     # scene0011_00, 525.jpg
+    valid_pcd_file = join(path, 'VLAD_triplets', 'vlad_pcd.txt')
+    with open(valid_pcd_file, "rb") as f:
+        # dict, key = scene string, val = list of filenames
+        all_scene_pcds = pickle.load(f)
+    print(all_scene_pcds['scene0011_00'])
+    print(all_scene_pcds['scene0011_00'][7])
+    print(all_scene_pcds['scene0011_00'][5])
+    print(all_scene_pcds['scene0011_00'][9])
+    print(all_scene_pcds['scene0011_00'][47])
     # # path = '/home/yohann/Documents/PontnetVLAD-data-test'
     # path = '/home/yohann/NNs/Semantic-Global-Localisation/test/scene0753_00_desk'
     # # ## one pcd a time
@@ -260,10 +275,24 @@ if __name__ == '__main__':
     #               'predictions/scene0753_00_1410.ply', 
     #               'predictions/scene0753_00_1695.ply']
     path = '/media/yohann/Datasets/datasets/ScanNetPR/scans'
-    file_names = ['scene0709_00_630_sub.ply', 
-                  'scene0709_00_405_sub.ply', 
-                  'scene0716_00_0_sub.ply', 
-                  'scene0761_00_2595_sub.ply']
+    anc_file = all_scene_pcds['scene0011_00'][7]
+    pos_filenames = [
+        all_scene_pcds['scene0011_00'][6],
+        all_scene_pcds['scene0011_00'][9]
+    ]
+    neg_filenames = [
+        all_scene_pcds['scene0011_00'][47],
+        'scene0000_00_4530_sub.ply',
+        'scene0191_00_1065_sub.ply', 
+        'scene0233_00_45_sub.ply', 
+        'scene0419_00_1005_sub.ply', 
+        'scene0567_00_90_sub.ply' 
+    ]
+    other_neg = 'scene0037_00_630_sub.ply'
+    # file_names = ['scene0716_00_180_sub.ply', 
+    #               'scene0745_00_0_sub.ply', 
+    #               'scene0775_00_0_sub.ply', 
+    #               'scene0733_00_0_sub.ply']
     R = [[1.0, 0.0, 0.0, 0], 
          [0.0, -1.0, 0.0, 0],
          [0.0, 0.0, -1.0, 0], 
@@ -274,92 +303,74 @@ if __name__ == '__main__':
          [0.0, 0.0, 0.0, 1.0]]
 
     vis0 = o3d.visualization.Visualizer()
-    vis0.create_window(window_name='Original', width=480, height=640, left=0, top=0)
-    o3dpcd00 = o3d.io.read_point_cloud(os.path.join(path, file_names[0][:12], 'input_pcd_0mean', file_names[0]))
+    vis0.create_window(window_name='pos-other_neg', width=480, height=640, left=0, top=0)
+    o3dpcd00 = o3d.io.read_point_cloud(os.path.join(path, anc_file[:12], 'input_pcd_0mean', anc_file))
     o3dpcd00.transform(R)
     vis0.add_geometry(o3dpcd00)
-    points = np.fromfile(os.path.join(os.path.join(path, file_names[0][:12], 'pnvlad_pcd',  file_names[0][:-3]+'bin')))
-    points = points.reshape((points.shape[0]//3, 3))
-    o3dpcd01 = o3d.geometry.PointCloud()
-    o3dpcd01.points = o3d.utility.Vector3dVector(points)
+    # points = np.fromfile(os.path.join(os.path.join(path, file_names[0][:12], 'pnvlad_pcd',  file_names[0][:-3]+'bin')))
+    # points = points.reshape((points.shape[0]//3, 3))
+    # o3dpcd01 = o3d.geometry.PointCloud()
+    # o3dpcd01.points = o3d.utility.Vector3dVector(points)
+    o3dpcd01 = o3d.io.read_point_cloud(os.path.join(path, other_neg[:12], 'input_pcd_0mean', other_neg))
     o3dpcd01.transform(R)
     o3dpcd01.transform(t)
     vis0.add_geometry(o3dpcd01)
 
     vis1 = o3d.visualization.Visualizer()
-    vis1.create_window(window_name='CGS-Net', width=480, height=640, left=480, top=0)
-    o3dpcd10 = o3d.io.read_point_cloud(os.path.join(path, file_names[1][:12], 'input_pcd_0mean', file_names[1]))
+    vis1.create_window(window_name='positives', width=480, height=640, left=480, top=0)
+    o3dpcd10 = o3d.io.read_point_cloud(os.path.join(path, pos_filenames[0][:12], 'input_pcd_0mean', pos_filenames[0]))
     o3dpcd10.transform(R)
     vis1.add_geometry(o3dpcd10)
-    points = np.fromfile(os.path.join(os.path.join(path, file_names[1][:12], 'pnvlad_pcd',  file_names[1][:-3]+'bin')))
-    points = points.reshape((points.shape[0]//3, 3))
-    o3dpcd11 = o3d.geometry.PointCloud()
-    o3dpcd11.points = o3d.utility.Vector3dVector(points)
+    # points = np.fromfile(os.path.join(os.path.join(path, file_names[1][:12], 'pnvlad_pcd',  file_names[1][:-3]+'bin')))
+    # points = points.reshape((points.shape[0]//3, 3))
+    # o3dpcd11 = o3d.geometry.PointCloud()
+    # o3dpcd11.points = o3d.utility.Vector3dVector(points)
+    o3dpcd11 = o3d.io.read_point_cloud(os.path.join(path, pos_filenames[1][:12], 'input_pcd_0mean', pos_filenames[1]))
     o3dpcd11.transform(R)
     o3dpcd11.transform(t)
     vis1.add_geometry(o3dpcd11)
 
     vis2 = o3d.visualization.Visualizer()
-    vis2.create_window(window_name='PN_VLAD', width=480, height=640, left=960, top=0)
-    o3dpcd20 = o3d.io.read_point_cloud(os.path.join(path, file_names[2][:12], 'input_pcd_0mean', file_names[2]))
+    vis2.create_window(window_name='neg-1', width=480, height=640, left=960, top=0)
+    o3dpcd20 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[0][:12], 'input_pcd_0mean', neg_filenames[0]))
     o3dpcd20.transform(R)
     vis2.add_geometry(o3dpcd20)
-    points = np.fromfile(os.path.join(os.path.join(path, file_names[2][:12], 'pnvlad_pcd',  file_names[2][:-3]+'bin')))
-    points = points.reshape((points.shape[0]//3, 3))
-    o3dpcd21 = o3d.geometry.PointCloud()
-    o3dpcd21.points = o3d.utility.Vector3dVector(points)
+    # points = np.fromfile(os.path.join(os.path.join(path, file_names[2][:12], 'pnvlad_pcd',  file_names[2][:-3]+'bin')))
+    # points = points.reshape((points.shape[0]//3, 3))
+    # o3dpcd21 = o3d.geometry.PointCloud()
+    # o3dpcd21.points = o3d.utility.Vector3dVector(points)
+    o3dpcd21 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[1][:12], 'input_pcd_0mean', neg_filenames[1]))
     o3dpcd21.transform(R)
     o3dpcd21.transform(t)
     vis2.add_geometry(o3dpcd21)
 
     vis3 = o3d.visualization.Visualizer()
-    vis3.create_window(window_name='MinkLoc3D', width=480, height=640, left=1440, top=0)
-    o3dpcd30 = o3d.io.read_point_cloud(os.path.join(path, file_names[3][:12], 'input_pcd_0mean', file_names[3]))
+    vis3.create_window(window_name='neg-2', width=480, height=640, left=1440, top=0)
+    o3dpcd30 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[2][:12], 'input_pcd_0mean', neg_filenames[2]))
     o3dpcd30.transform(R)
     vis3.add_geometry(o3dpcd30)
-    points = np.fromfile(os.path.join(os.path.join(path, file_names[3][:12], 'pnvlad_pcd',  file_names[3][:-3]+'bin')))
-    points = points.reshape((points.shape[0]//3, 3))
-    o3dpcd31 = o3d.geometry.PointCloud()
-    o3dpcd31.points = o3d.utility.Vector3dVector(points)
+    # points = np.fromfile(os.path.join(os.path.join(path, file_names[3][:12], 'pnvlad_pcd',  file_names[3][:-3]+'bin')))
+    # points = points.reshape((points.shape[0]//3, 3))
+    # o3dpcd31 = o3d.geometry.PointCloud()
+    # o3dpcd31.points = o3d.utility.Vector3dVector(points)
+    o3dpcd31 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[3][:12], 'input_pcd_0mean', neg_filenames[3]))
     o3dpcd31.transform(R)
     o3dpcd31.transform(t)
     vis3.add_geometry(o3dpcd31)
 
-    # #### Draw semantic results
-    # # points = np.fromfile(os.path.join(os.path.join(path, file_names[2])))
-    # # points = points.reshape((points.shape[0]//3, 3))
-    # data = read_ply(os.path.join(path, file_names[2]))
-    # print(data.dtype.names)
-    # points = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
-    # labels = data['pre']
-    # colours = np.zeros(points.shape)
-    # for i, label in enumerate(labels):
-    #     colours[i] = np.array(label_to_colour[label])/255.
-    # colours = colours.astype(np.float32)
-    # o3dpcd2 = o3d.geometry.PointCloud()
-    # o3dpcd2.points = o3d.utility.Vector3dVector(points)
-    # o3dpcd2.colors = o3d.utility.Vector3dVector(colours)
-    # # o3dpcd2 = o3d.io.read_point_cloud(os.path.join(path, file_names[2]))    
-    # vis2 = o3d.visualization.Visualizer()
-    # vis2.create_window(window_name=file_names[2], width=960, height=540, left=0, top=540)
-    # vis2.add_geometry(o3dpcd2)
-
-    # # points = np.fromfile(os.path.join(os.path.join(path, file_names[3])))
-    # # points = points.reshape((points.shape[0]//3, 3))
-    # data = read_ply(os.path.join(path, file_names[3]))
-    # points = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
-    # labels = data['pre']
-    # colours = np.zeros(points.shape)
-    # for i, label in enumerate(labels):
-    #     colours[i] = np.array(label_to_colour[label])/255.
-    # colours = colours.astype(np.float32)
-    # o3dpcd3 = o3d.geometry.PointCloud()
-    # o3dpcd3.points = o3d.utility.Vector3dVector(points)
-    # o3dpcd3.colors = o3d.utility.Vector3dVector(colours)
-    # # o3dpcd3 = o3d.io.read_point_cloud(os.path.join(path, file_names[3]))
-    # vis3 = o3d.visualization.Visualizer()
-    # vis3.create_window(window_name=file_names[3], width=960, height=540, left=960, top=540)
-    # vis3.add_geometry(o3dpcd3)
+    vis4 = o3d.visualization.Visualizer()
+    vis4.create_window(window_name='neg-3', width=480, height=640, left=1440, top=0)
+    o3dpcd40 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[4][:12], 'input_pcd_0mean', neg_filenames[4]))
+    o3dpcd40.transform(R)
+    vis4.add_geometry(o3dpcd40)
+    # points = np.fromfile(os.path.join(os.path.join(path, file_names[3][:12], 'pnvlad_pcd',  file_names[3][:-3]+'bin')))
+    # points = points.reshape((points.shape[0]//3, 3))
+    # o3dpcd41 = o3d.geometry.PointCloud()
+    # o3dpcd41.points = o3d.utility.Vector3dVector(points)
+    o3dpcd41 = o3d.io.read_point_cloud(os.path.join(path, neg_filenames[5][:12], 'input_pcd_0mean', neg_filenames[5]))
+    o3dpcd41.transform(R)
+    o3dpcd41.transform(t)
+    vis4.add_geometry(o3dpcd41)
 
     angle_degree = 0
     # angle_degree = 0.003
@@ -400,16 +411,103 @@ if __name__ == '__main__':
             break
         # vis3.update_renderer()
 
-        # o3dpcd4.transform(update_Rt)
-        # vis4.update_geometry(o3dpcd4)
-        # if not vis4.poll_events():
-        #     break
-        # # vis4.update_renderer()
+        o3dpcd40.transform(update_Rt)
+        vis4.update_geometry(o3dpcd40)
+        o3dpcd41.transform(update_Rt)
+        vis4.update_geometry(o3dpcd41)
+        if not vis4.poll_events():
+            break
+        # vis4.update_renderer()
     vis0.destroy_window()
     vis1.destroy_window()
     vis2.destroy_window()
     vis3.destroy_window()
     # vis4.destroy_window()
+
+
+    # #### Draw semantic results
+    # paths = ['/media/yohann/Datasets/datasets/ScanNet/scans/scene0011_00/input_pcd_0mean',
+    #          '/home/yohann/NNs/Place_Recognition/Semantic-Global-Localisation/test/Log_2021-06-16_02-42-30/val_predictions']
+    # file_name = 'scene0011_00_1410.ply'
+    # data = read_ply(os.path.join(paths[0], file_name[:-4]+'_sub.ply'))
+    # print(data.dtype.names)
+    # # points = np.fromfile(os.path.join(os.path.join(path, file_names[2])))
+    # # points = points.reshape((points.shape[0]//3, 3))
+
+    # points = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
+    # colours = np.vstack((data['red'], data['green'], data['blue'])).astype(np.float32).T
+    # print(colours)
+    # colours = colours.astype(np.float32)
+    # colours /= 255.
+    # o3dpcd0 = o3d.geometry.PointCloud()
+    # o3dpcd0.points = o3d.utility.Vector3dVector(points)
+    # o3dpcd0.colors = o3d.utility.Vector3dVector(colours)
+    # vis0 = o3d.visualization.Visualizer()
+    # vis0.create_window(window_name='Colour', width=960, height=540, left=0, top=540)
+    # vis0.add_geometry(o3dpcd0)
+    
+    # data = read_ply(os.path.join(paths[1], file_name))
+    # print(data.dtype.names)
+    # labels = data['gt']
+    # colours = np.zeros(points.shape)
+    # for i, label in enumerate(labels):
+    #     colours[i] = np.array(label_to_colour[label])/255.
+    # colours = colours.astype(np.float32)
+    # o3dpcd1 = o3d.geometry.PointCloud()
+    # o3dpcd1.points = o3d.utility.Vector3dVector(points)
+    # o3dpcd1.colors = o3d.utility.Vector3dVector(colours)
+    # vis1 = o3d.visualization.Visualizer()
+    # vis1.create_window(window_name='GT', width=960, height=540, left=0, top=540)
+    # vis1.add_geometry(o3dpcd1)
+    
+    # labels = data['pre']
+    # colours = np.zeros(points.shape)
+    # for i, label in enumerate(labels):
+    #     colours[i] = np.array(label_to_colour[label])/255.
+    # colours = colours.astype(np.float32)
+    # o3dpcd2 = o3d.geometry.PointCloud()
+    # o3dpcd2.points = o3d.utility.Vector3dVector(points)
+    # o3dpcd2.colors = o3d.utility.Vector3dVector(colours)
+    # vis2 = o3d.visualization.Visualizer()
+    # vis2.create_window(window_name='Pred', width=960, height=540, left=0, top=540)
+    # vis2.add_geometry(o3dpcd2)
+
+    # # # points = np.fromfile(os.path.join(os.path.join(path, file_names[3])))
+    # # # points = points.reshape((points.shape[0]//3, 3))
+    # # data = read_ply(os.path.join(path, file_names[3]))
+    # # points = np.vstack((data['x'], data['y'], data['z'])).astype(np.float32).T
+    # # labels = data['pre']
+    # # colours = np.zeros(points.shape)
+    # # for i, label in enumerate(labels):
+    # #     colours[i] = np.array(label_to_colour[label])/255.
+    # # colours = colours.astype(np.float32)
+    # # o3dpcd3 = o3d.geometry.PointCloud()
+    # # o3dpcd3.points = o3d.utility.Vector3dVector(points)
+    # # o3dpcd3.colors = o3d.utility.Vector3dVector(colours)
+    # # # o3dpcd3 = o3d.io.read_point_cloud(os.path.join(path, file_names[3]))
+    # # vis3 = o3d.visualization.Visualizer()
+    # # vis3.create_window(window_name=file_names[3], width=960, height=540, left=960, top=540)
+    # # vis3.add_geometry(o3dpcd3)
+
+    # while True:
+    #     vis0.update_geometry(o3dpcd0)
+    #     if not vis0.poll_events():
+    #         break
+    #     # vis0.update_renderer()
+
+    #     vis1.update_geometry(o3dpcd1)
+    #     if not vis1.poll_events():
+    #         break
+    #     # vis1.update_renderer()
+
+    #     vis2.update_geometry(o3dpcd2)
+    #     if not vis2.poll_events():
+    #         break
+    #     # vis2.update_renderer()
+
+    # vis0.destroy_window()
+    # vis1.destroy_window()
+    # vis2.destroy_window()
 
     # #### visualise database pcds ####
     # # load pcd db and query
