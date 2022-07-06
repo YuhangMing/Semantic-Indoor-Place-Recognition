@@ -21,7 +21,7 @@ test
 
 Database contains 236 pcds, and test with the rest 3372 pcds. 
 Distance threshold is 3.0m.
-  My PRNet, Adam, Lazy Quadruplet loss, 5 feats, 35000 steps, full dataset
+  My PRNet, Adam, Lazy Quadruplet loss [error in other neg term], 5 feats, 35000 steps, full dataset
   chkp_20
     With pcd of various pts number and color, trained semantically
   - Top 1 recall = 0.5714709371293001
@@ -44,6 +44,11 @@ Distance threshold is 3.0m.
   - Top 1 recall = 0.6115065243179122
   - Top 2 recall = 0.7019572953736655
   - Top 3 recall = 0.7526690391459074
+  My PRNet, Adam, Lazy Quadruplet loss [error in other neg term], 5 feats, 35000 steps, full dataset
+  chkp_20
+  - Top 1 recall = 0.5895610913404508
+  - Top 2 recall = 0.693950177935943
+  - Top 3 recall = 0.744661921708185
     With pcd of various pts number and color, trained from sratch
   chkp_20
   - Top 1 recall = 0.5388493475682088

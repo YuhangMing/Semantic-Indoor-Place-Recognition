@@ -1,59 +1,69 @@
-# Modified on the KPConv network by Hugues THOMAS
+# Semantic Indoor Place Recognition
 
+Repo will be cleaned up soon.
 
-![Intro figure](https://github.com/HuguesTHOMAS/KPConv-PyTorch/blob/master/doc/Github_intro.png)
-
+![Overview](./doc/overview.png)
 
 ## Introduction
 
-This repository contains the implementation of **Kernel Point Convolution** (KPConv) in [PyTorch](https://pytorch.org/).
-
-KPConv is also available in [Tensorflow](https://github.com/HuguesTHOMAS/KPConv) (original but older implementation).
-
-Another implementation of KPConv is available in [PyTorch-Points-3D](https://github.com/nicolas-chaulet/torch-points3d)
+This repository contains the implementation of **CGiS-Net** in [PyTorch](https://pytorch.org/).
  
-KPConv is a point convolution operator presented in our ICCV2019 paper ([arXiv](https://arxiv.org/abs/1904.08889)). If you find our work useful in your 
-research, please consider citing:
+CGiS-Net is an indoor place recognitino network presented in our IROS 2022 paper ([arXiv](https://arxiv.org/abs/2202.02070)). If you find our work useful in your research, please consider citing:
 
 ```
-@article{thomas2019KPConv,
-    Author = {Thomas, Hugues and Qi, Charles R. and Deschaud, Jean-Emmanuel and Marcotegui, Beatriz and Goulette, Fran{\c{c}}ois and Guibas, Leonidas J.},
-    Title = {KPConv: Flexible and Deformable Convolution for Point Clouds},
-    Journal = {Proceedings of the IEEE International Conference on Computer Vision},
-    Year = {2019}
+@inproceedings{ming2022CGiSNet,
+    author = {Ming, Yuhang and Yang, Xingrui and Zhang, Guofeng and Calway, Andrew},
+    title = {CGiS-Net: Aggregating Colour, Geometry and Implicit Semantic Features for Indoor Place Recognition}
+    booktitle = {IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+    Year = {2022}
 }
 ```
 
 ## Installation
 
-This implementation has been tested on Ubuntu 18.04 and Windows 10. Details are provided in [INSTALL.md](./INSTALL.md).
+This implementation has been tested on Ubuntu 18.04 and 20.04. 
 
+* For Ubuntu 18.04 installation, please see the instructions from the official KP-Conv repository [INSTALL.md](https://github.com/HuguesTHOMAS/KPConv-PyTorch/blob/master/INSTALL.md).
+
+* For Ubuntu 20.04 installation, the procedure is basically the same except for different versions of packages are used.
+
+    - PyTorch 1.8.0, torchvision 0.9.0, CUDA 11.1, cuDNN 8.6.0
 
 ## Experiments
 
-We provide scripts for three experiments: ModelNet40, S3DIS and SemanticKitti. The instructions to run these 
-experiments are in the [doc](./doc) folder.
+### Generate data
 
-* [Object Classification](./doc/object_classification_guide.md): Instructions to train KP-CNN on an object classification
- task (Modelnet40).
- 
-* [Scene Segmentation](./doc/scene_segmentation_guide.md): Instructions to train KP-FCNN on a scene segmentation 
- task (S3DIS).
- 
-* [SLAM Segmentation](./doc/slam_segmentation_guide.md): Instructions to train KP-FCNN on a slam segmentation 
- task (SemanticKitti).
- 
-* [Pretrained models](./doc/pretrained_models_guide.md): We provide pretrained weights and instructions to load them.
- 
-* [Visualization scripts](./doc/visualization_guide.md): For now only one visualization script has been implemented: 
-the kernel deformations display.
+
+### Training stage 1:
+
+
+### Training stage 2:
+
+
+### Visualisations
+* [Kernel Visualization](./doc/visualization_guide.md): Use the script from KP-Conv repository, the kernel deformations can be displayed.
+
+### Results
+
+Our CGiS-Net is compared to a traditional baseline using SIFT+BoW, and 4 deep learning based method [NetVLAD](https://github.com/Nanne/pytorch-NetVlad), [PointNetVLAD](https://github.com/cattaneod/PointNetVlad-Pytorch), [MinkLoc3D](https://github.com/jac99/MinkLoc3D) and Indoor DH3D.
+
+|   |Recall@1|Recall@2|Recall@3|
+|---|---|---|---|
+| SIFT+BoW  | 16.16  | 21.17  | 24.38  |
+| NetVLAD  | 21.77  | 33.81  | 41.49  |
+| PointNetVLAD  | 5.31  | 7.50  | 9.99  |
+| MinkLoc3D  | 3.32  | 5.81  | 8.27  |
+| Indoor DH3D  | 16.10  | 21.92  | 25.30  |
+| CGiS-Net (Ours)  | 61.12  | 70.23  | 75.06  |
+
+![Results](./doc/results.png)
+
 
 ## Acknowledgment
 
-Our code uses the <a href="https://github.com/jlblancoc/nanoflann">nanoflann</a> library.
+In this project, we use parts of the official implementations of following works:
 
-## License
-Our code is released under MIT License (see LICENSE file for details).
+* <a href="https://github.com/HuguesTHOMAS/KPConv-PyTorch">KP-FCNN</a> (Semantic Encoder-Decoder)
 
-## Updates
-* 27/04/2020: Initial release.
+* <a href="https://github.com/cattaneod/PointNetVlad-Pytorch">PointNetVLAD-Pytorch</a> (NetVLAD Layer)
+

@@ -264,27 +264,6 @@ class NetVLAD(nn.Module):
         # 1024*64 -> 256
         self.FC_2 = nn.Linear(feature_size*cluster_size, output_dim, bias=True)
 
-        # # (1024, 128)
-        # self.cluster_weights = nn.Parameter(torch.randn(
-        #     feature_size, cluster_size) * 1 / math.sqrt(feature_size))
-        # # (1, 1024, 128)
-        # self.cluster_weights2 = nn.Parameter(torch.randn(
-        #     1, feature_size, cluster_size) * 1 / math.sqrt(feature_size))
-        # # (1024*128, 256)
-        # self.hidden1_weights = nn.Parameter(
-        #     torch.randn(cluster_size * feature_size, output_dim) * 1 / math.sqrt(feature_size))
-
-        # if add_batch_norm:
-        #     self.cluster_biases = None
-        #     self.bn1 = nn.BatchNorm1d(cluster_size)
-        # else:
-        #     self.cluster_biases = nn.Parameter(torch.randn(
-        #         cluster_size) * 1 / math.sqrt(feature_size))
-        #     self.bn1 = None
-
-        # WHY BATCH NORM?? not mentioned in the paper
-        # self.bn2 = nn.BatchNorm1d(output_dim)
-
         if gating:
             self.context_gating = GatingContext(
                 output_dim, add_batch_norm=add_batch_norm)
@@ -325,7 +304,6 @@ class NetVLAD(nn.Module):
 
         return vlad
 
-# gate what?
 class GatingContext(nn.Module):
     def __init__(self, dim, add_batch_norm=True):
         super(GatingContext, self).__init__()

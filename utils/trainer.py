@@ -1,17 +1,10 @@
-#
-#
-#      0=================================0
-#      |    Kernel Point Convolutions    |
-#      0=================================0
-#
-#
 # ----------------------------------------------------------------------------------------------------------------------
 #
 #      Class handling the training of any model
 #
 # ----------------------------------------------------------------------------------------------------------------------
 #
-#      Hugues THOMAS - 11/06/2018
+#      Yuhang Ming
 #
 
 
@@ -51,6 +44,314 @@ from models.blocks import KPConv
 #       \*******************/
 #
 
+class RecogModelTrainer:
+    
+    # Initialization
+    def __init__(self, net, config, chkp_path=None, finetune=False, on_gpu=True):
+        """
+        Initialize training parameters and reload previous model for restore/finetune
+        :param net: network object
+        :param config: configuration object
+        :param chkp_path: path to the checkpoint that needs to be loaded (None for new training)
+        :param finetune: finetune from checkpoint (True) or restore training from checkpoint (False)
+        :param on_gpu: Train on GPU or CPU
+        """
+
+        ############
+        # Parameters
+        ############
+
+        # Epoch index
+        self.epoch = 0
+        self.step = 0
+
+        if config.optimiser in ['Sgd', 'sgd', 'SGD']:
+            # SGD optimiser
+            self.optimizer = torch.optim.SGD(net.parameters(), lr=config.learning_rate, momentum=config.momentum, weight_decay=config.weight_decay)
+        elif config.optimiser in ['Adam', 'adam', 'ADAM']:
+            # Adam optimiser
+            self.optimizer = torch.optim.Adam(net.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+        else:
+            raise ValueError('Unknown optmiser:', config.optmiser)
+        # print(self.optimizer.param_groups)
+
+        if config.loss in ['lazy_quadruplet', 'Lazy_Quadruplet', 'LzQuad', 'lzquad']:
+            # lazy quadruplet loss
+            self.loss_function = 'LzQuad'
+        elif config.loss in ['lazy_triplet', 'Lazy_Triplet', 'LzTrip', 'lztrip']:
+            # lazy triplet loss
+            self.loss_function = 'LzTrip'
+        elif config.loss in ['triplet', 'Triplet', 'Trip', 'trip']:
+            self.loss_function = 'Trip'
+        else:
+            raise ValueError('Unknown loss function:', config.loss)
+        
+        # Choose to train on CPU or GPU
+        if on_gpu and torch.cuda.is_available():
+            self.device = torch.device("cuda:0")
+        else:
+            self.device = torch.device("cpu")
+        net.to(self.device)
+
+        ##########################
+        # Load previous checkpoint
+        ##########################
+
+        if (chkp_path is not None):
+            if finetune:
+                checkpoint = torch.load(chkp_path)
+                net.load_state_dict(checkpoint['model_state_dict'])
+                net.train()
+                print("Model restored and ready for finetuning.")
+            else:
+                checkpoint = torch.load(chkp_path)
+                net.load_state_dict(checkpoint['model_state_dict'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                self.epoch = checkpoint['epoch']
+                net.train()
+                print("Model and training state restored.")
+
+        # Path of the result folder
+        if config.saving:
+            if config.saving_path is None:
+                config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
+            if not exists(config.saving_path):
+                makedirs(config.saving_path)
+            config.save()
+
+        return
+
+    # Training main
+    # def train(self, net, training_loader, val_loader, config):
+    def train(self, net, segmentation, training_loader, config):
+        """
+        Train the model on a particular dataset.
+        """
+
+        ################
+        # Initialization
+        ################
+
+        if config.saving:
+            # Training log file
+            # with open(join(config.saving_path, 'training.txt'), "w") as file:
+            #     file.write('epochs steps out_loss offset_loss train_accuracy time\n')
+
+            # Killing file (simply delete this file when you want to stop the training)
+            PID_file = join(config.saving_path, 'running_PID.txt')
+            if not exists(PID_file):
+                with open(PID_file, "w") as file:
+                    file.write('Launched with PyCharm')
+
+            # Checkpoints directory
+            checkpoint_directory = join(config.saving_path, 'checkpoints')
+            if not exists(checkpoint_directory):
+                makedirs(checkpoint_directory)
+        else:
+            checkpoint_directory = None
+            PID_file = None
+
+        # Loop variables
+        t0 = time.time()
+        t = [time.time()]
+        last_display = time.time()
+        mean_dt = np.zeros(1)
+
+        # Start training loop
+        break_cnt = 0
+        for epoch in range(config.max_epoch):
+
+            # Remove File for kill signal
+            if epoch == config.max_epoch - 1 and exists(PID_file):
+                remove(PID_file)
+
+            self.step = 0
+            for batch in training_loader:
+
+                # Check kill signal (running_PID.txt deleted)
+                if config.saving and not exists(PID_file):
+                    continue
+
+                ##################
+                # Processing batch
+                ##################
+                
+                # New time
+                t = t[-1:]
+                t += [time.time()]
+                
+                # continue if empty input list is given
+                # caused by empty positive neighbors
+                if len(batch.points) == 0:
+                    break_cnt +=1
+                    continue
+                else:
+                    break_cnt = 0
+                # stop fetch new batch if no more points left
+                if break_cnt > 4:
+                    break
+
+                if 'cuda' in self.device.type:
+                    batch.to(self.device)
+
+                # # A Complete Forward Pass in SegNet
+                # outputs = seg_net(batch, config)
+                # Get interim features for place recognition
+                # with dims [a, 64] [b, 128] [c, 256] [d, 512] [e, 1024]
+                # inter_en_feat is a list of torch tensors
+                inter_en_feat = segmentation.inter_encoder_features(batch)
+
+                # t += [time.time()]
+
+                # separate the stacked features to different feature vectors
+                # Dictionary of query, positive, negative point cloud features
+                feat_vecs = {'query': [[]], 'positive': [[], []], 'negative': []}
+                feat_keys = ['query', 'positive', 'positive']
+                feats_idx = [0, 0, 1]
+                for idx in range(config.num_neg_samples):
+                    feat_vecs['negative'].append([])
+                    feat_keys.append('negative')
+                    feats_idx.append(idx)
+                feat_vecs['negative_star'] = [[]]
+                feat_keys.append('negative_star')
+                feats_idx.append(0)
+                # print('\n  ', len(inter_en_feat), 'intermediate features stored, size and length shown below:')
+                for m, feat in enumerate(inter_en_feat):
+                    # feat = feat.to(torch.device("cpu"))
+                    layer_length = batch.lengths[m].to(torch.device("cpu"))
+                    # separate query, positive, and negative
+                    ind = 0
+                    # print(feat.size(), layer_length)
+                    for n, l in enumerate(layer_length):
+                        one_feat = feat[ind:ind+l, :]
+                        # store the feature vector in the corresponding place
+                        key = feat_keys[n]
+                        idx = feats_idx[n]
+                        feat_vecs[key][idx].append(one_feat)
+                        ind += l
+
+                t += [time.time()]
+
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
+
+                # Forward pass to get vlad descriptor
+                # get vlad descriptor
+                vlad_desp = []
+                for key, vals in feat_vecs.items():
+                    for val in vals:
+                        # print(key)
+                        # for layer in range(5):
+                        #     print(val[layer].size())
+                        # print(val) # on cuda:0
+                        descrip = net(val)
+                        # print('descriptor: ', descrip.size())
+                        # print(descrip)
+                        vlad_desp.append(descrip)
+
+                t += [time.time()]
+
+                # # TripletLoss
+                # loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1])
+                # # LazyQuadrupletLoss
+                loss = net.loss(self.loss_function, vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1], vlad_desp[-1])
+                # acc = net.accuracy(outputs, batch.labels)
+
+                t += [time.time()]
+
+                # Backward + optimize
+                loss.backward()
+
+                # if config.grad_clip_norm > 0:
+                #     #torch.nn.utils.clip_grad_norm_(net.parameters(), config.grad_clip_norm)
+                #     torch.nn.utils.clip_grad_value_(net.parameters(), config.grad_clip_norm)
+                self.optimizer.step()
+                torch.cuda.synchronize(self.device)
+
+                t += [time.time()]
+
+                # Average timing
+                if self.step < 2:
+                    mean_dt = np.array(t[1:]) - np.array(t[:-1])
+                else:
+                    mean_dt = 0.9 * mean_dt + 0.1 * (np.array(t[1:]) - np.array(t[:-1]))
+
+                # Console display (only one per second)
+                if (t[-1] - last_display) > 1.0:
+                    last_display = t[-1]
+                    message = 'e{:03d}-i{:04d} => L={:.3f} / t(s): batch={:.3f} extract={:.3f} vlad={:.3f} loss={:.3f} optim={:.3f}'
+                    print(message.format(self.epoch, self.step,
+                                         loss.item(),
+                                         mean_dt[0], mean_dt[1], mean_dt[2],
+                                         mean_dt[3], mean_dt[4]))
+
+                # Log file
+                if config.saving:
+                    with open(join(config.saving_path, 'training.txt'), "a") as file:
+                        message = 'e{:03d}-i{:03d}: L={:.3f} t_batch={:.3f} t_feat={:.3f} t_vlad={:.3f} t_acc={:.3f}\n'
+                        file.write(message.format(self.epoch,
+                                                  self.step,
+                                                  loss.item(),
+                                                  t[1] - t[0],
+                                                  t[2] - t[1],
+                                                  t[-1] - t[2],
+                                                  t[-1] - t0))
+
+
+                self.step += 1
+                t += [time.time()]
+
+            ##############
+            # End of epoch
+            ##############
+
+            # Check kill signal (running_PID.txt deleted)
+            if config.saving and not exists(PID_file):
+                break
+
+            # Update learning rate
+            if self.epoch in config.lr_decays:
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] *= config.lr_decays[self.epoch]
+
+            # Update epoch
+            self.epoch += 1
+
+            # Saving
+            if config.saving:
+                # Get current state dict
+                save_dict = {'epoch': self.epoch,
+                             'model_state_dict': net.state_dict(),
+                             'optimizer_state_dict': self.optimizer.state_dict(),
+                             'saving_path': config.saving_path}
+
+                # Save current state of the network (for restoring purposes)
+                checkpoint_path = join(checkpoint_directory, 'current_chkp.tar')
+                torch.save(save_dict, checkpoint_path)
+
+                # Save checkpoints occasionally
+                if (self.epoch + 1) % config.checkpoint_gap == 0:
+                    checkpoint_path = join(checkpoint_directory, 'chkp_{:04d}.tar'.format(self.epoch + 1))
+                    torch.save(save_dict, checkpoint_path)
+
+            # # Validation
+            # net.eval()
+            # self.validation(net, val_loader, config)
+            
+            net.train()
+
+        print('Finished Training')
+        return
+
+    # Validation
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#
+#       Trainer Class from KP-Conv
+#       Hugues THOMAS - 11/06/2018
+#       \*******************/
+#
 
 class ModelTrainer:
 
@@ -916,309 +1217,6 @@ class ModelTrainer:
         return
 
 
-
-
-
-class RecogModelTrainer:
-    
-    # Initialization
-    def __init__(self, net, config, chkp_path=None, finetune=False, on_gpu=True):
-        """
-        Initialize training parameters and reload previous model for restore/finetune
-        :param net: network object
-        :param config: configuration object
-        :param chkp_path: path to the checkpoint that needs to be loaded (None for new training)
-        :param finetune: finetune from checkpoint (True) or restore training from checkpoint (False)
-        :param on_gpu: Train on GPU or CPU
-        """
-
-        ############
-        # Parameters
-        ############
-
-        # Epoch index
-        self.epoch = 0
-        self.step = 0
-
-        if config.optimiser in ['Sgd', 'sgd', 'SGD']:
-            # SGD optimiser
-            self.optimizer = torch.optim.SGD(net.parameters(), lr=config.learning_rate, momentum=config.momentum, weight_decay=config.weight_decay)
-        elif config.optimiser in ['Adam', 'adam', 'ADAM']:
-            # Adam optimiser
-            self.optimizer = torch.optim.Adam(net.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
-        else:
-            raise ValueError('Unknown optmiser:', config.optmiser)
-        # print(self.optimizer.param_groups)
-
-        if config.loss in ['lazy_quadruplet', 'Lazy_Quadruplet', 'LzQuad', 'lzquad']:
-            # lazy quadruplet loss
-            self.loss_function = 'LzQuad'
-        elif config.loss in ['lazy_triplet', 'Lazy_Triplet', 'LzTrip', 'lztrip']:
-            # lazy triplet loss
-            self.loss_function = 'LzTrip'
-        elif config.loss in ['triplet', 'Triplet', 'Trip', 'trip']:
-            self.loss_function = 'Trip'
-        else:
-            raise ValueError('Unknown loss function:', config.loss)
-        
-        # Choose to train on CPU or GPU
-        if on_gpu and torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-        else:
-            self.device = torch.device("cpu")
-        net.to(self.device)
-
-        ##########################
-        # Load previous checkpoint
-        ##########################
-
-        if (chkp_path is not None):
-            if finetune:
-                checkpoint = torch.load(chkp_path)
-                net.load_state_dict(checkpoint['model_state_dict'])
-                net.train()
-                print("Model restored and ready for finetuning.")
-            else:
-                checkpoint = torch.load(chkp_path)
-                net.load_state_dict(checkpoint['model_state_dict'])
-                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-                self.epoch = checkpoint['epoch']
-                net.train()
-                print("Model and training state restored.")
-
-        # Path of the result folder
-        if config.saving:
-            if config.saving_path is None:
-                config.saving_path = time.strftime('results/Recog_Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
-            if not exists(config.saving_path):
-                makedirs(config.saving_path)
-            config.save()
-
-        return
-
-    # Training main
-    # def train(self, net, training_loader, val_loader, config):
-    def train(self, net, segmentation, training_loader, config):
-        """
-        Train the model on a particular dataset.
-        """
-
-        ################
-        # Initialization
-        ################
-
-        if config.saving:
-            # Training log file
-            # with open(join(config.saving_path, 'training.txt'), "w") as file:
-            #     file.write('epochs steps out_loss offset_loss train_accuracy time\n')
-
-            # Killing file (simply delete this file when you want to stop the training)
-            PID_file = join(config.saving_path, 'running_PID.txt')
-            if not exists(PID_file):
-                with open(PID_file, "w") as file:
-                    file.write('Launched with PyCharm')
-
-            # Checkpoints directory
-            checkpoint_directory = join(config.saving_path, 'checkpoints')
-            if not exists(checkpoint_directory):
-                makedirs(checkpoint_directory)
-        else:
-            checkpoint_directory = None
-            PID_file = None
-
-        # Loop variables
-        t0 = time.time()
-        t = [time.time()]
-        last_display = time.time()
-        mean_dt = np.zeros(1)
-
-        # Start training loop
-        break_cnt = 0
-        for epoch in range(config.max_epoch):
-
-            # Remove File for kill signal
-            if epoch == config.max_epoch - 1 and exists(PID_file):
-                remove(PID_file)
-
-            self.step = 0
-            for batch in training_loader:
-
-                # Check kill signal (running_PID.txt deleted)
-                if config.saving and not exists(PID_file):
-                    continue
-
-                ##################
-                # Processing batch
-                ##################
-                
-                # New time
-                t = t[-1:]
-                t += [time.time()]
-                
-                # continue if empty input list is given
-                # caused by empty positive neighbors
-                if len(batch.points) == 0:
-                    break_cnt +=1
-                    continue
-                else:
-                    break_cnt = 0
-                # stop fetch new batch if no more points left
-                if break_cnt > 4:
-                    break
-
-                if 'cuda' in self.device.type:
-                    batch.to(self.device)
-
-                # # A Complete Forward Pass in SegNet
-                # outputs = seg_net(batch, config)
-                # Get interim features for place recognition
-                # with dims [a, 64] [b, 128] [c, 256] [d, 512] [e, 1024]
-                # inter_en_feat is a list of torch tensors
-                inter_en_feat = segmentation.inter_encoder_features(batch)
-
-                # t += [time.time()]
-
-                # separate the stacked features to different feature vectors
-                # Dictionary of query, positive, negative point cloud features
-                feat_vecs = {'query': [[]], 'positive': [[], []], 'negative': []}
-                feat_keys = ['query', 'positive', 'positive']
-                feats_idx = [0, 0, 1]
-                for idx in range(config.num_neg_samples):
-                    feat_vecs['negative'].append([])
-                    feat_keys.append('negative')
-                    feats_idx.append(idx)
-                feat_vecs['negative_star'] = [[]]
-                feat_keys.append('negative_star')
-                feats_idx.append(0)
-                # print('\n  ', len(inter_en_feat), 'intermediate features stored, size and length shown below:')
-                for m, feat in enumerate(inter_en_feat):
-                    # feat = feat.to(torch.device("cpu"))
-                    layer_length = batch.lengths[m].to(torch.device("cpu"))
-                    # separate query, positive, and negative
-                    ind = 0
-                    # print(feat.size(), layer_length)
-                    for n, l in enumerate(layer_length):
-                        one_feat = feat[ind:ind+l, :]
-                        # store the feature vector in the corresponding place
-                        key = feat_keys[n]
-                        idx = feats_idx[n]
-                        feat_vecs[key][idx].append(one_feat)
-                        ind += l
-
-                t += [time.time()]
-
-                # zero the parameter gradients
-                self.optimizer.zero_grad()
-
-                # Forward pass to get vlad descriptor
-                # get vlad descriptor
-                vlad_desp = []
-                for key, vals in feat_vecs.items():
-                    for val in vals:
-                        # print(key)
-                        # for layer in range(5):
-                        #     print(val[layer].size())
-                        # print(val) # on cuda:0
-                        descrip = net(val)
-                        # print('descriptor: ', descrip.size())
-                        # print(descrip)
-                        vlad_desp.append(descrip)
-
-                t += [time.time()]
-
-                # # TripletLoss
-                # loss = net.loss(vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1])
-                # # LazyQuadrupletLoss
-                loss = net.loss(self.loss_function, vlad_desp[0], vlad_desp[1:3], vlad_desp[3:-1], vlad_desp[-1])
-                # acc = net.accuracy(outputs, batch.labels)
-
-                t += [time.time()]
-
-                # Backward + optimize
-                loss.backward()
-
-                # if config.grad_clip_norm > 0:
-                #     #torch.nn.utils.clip_grad_norm_(net.parameters(), config.grad_clip_norm)
-                #     torch.nn.utils.clip_grad_value_(net.parameters(), config.grad_clip_norm)
-                self.optimizer.step()
-                torch.cuda.synchronize(self.device)
-
-                t += [time.time()]
-
-                # Average timing
-                if self.step < 2:
-                    mean_dt = np.array(t[1:]) - np.array(t[:-1])
-                else:
-                    mean_dt = 0.9 * mean_dt + 0.1 * (np.array(t[1:]) - np.array(t[:-1]))
-
-                # Console display (only one per second)
-                if (t[-1] - last_display) > 1.0:
-                    last_display = t[-1]
-                    message = 'e{:03d}-i{:04d} => L={:.3f} / t(s): batch={:.3f} extract={:.3f} vlad={:.3f} loss={:.3f} optim={:.3f}'
-                    print(message.format(self.epoch, self.step,
-                                         loss.item(),
-                                         mean_dt[0], mean_dt[1], mean_dt[2],
-                                         mean_dt[3], mean_dt[4]))
-
-                # Log file
-                if config.saving:
-                    with open(join(config.saving_path, 'training.txt'), "a") as file:
-                        message = 'e{:03d}-i{:03d}: L={:.3f} t_batch={:.3f} t_feat={:.3f} t_vlad={:.3f} t_acc={:.3f}\n'
-                        file.write(message.format(self.epoch,
-                                                  self.step,
-                                                  loss.item(),
-                                                  t[1] - t[0],
-                                                  t[2] - t[1],
-                                                  t[-1] - t[2],
-                                                  t[-1] - t0))
-
-
-                self.step += 1
-                t += [time.time()]
-
-            ##############
-            # End of epoch
-            ##############
-
-            # Check kill signal (running_PID.txt deleted)
-            if config.saving and not exists(PID_file):
-                break
-
-            # Update learning rate
-            if self.epoch in config.lr_decays:
-                for param_group in self.optimizer.param_groups:
-                    param_group['lr'] *= config.lr_decays[self.epoch]
-
-            # Update epoch
-            self.epoch += 1
-
-            # Saving
-            if config.saving:
-                # Get current state dict
-                save_dict = {'epoch': self.epoch,
-                             'model_state_dict': net.state_dict(),
-                             'optimizer_state_dict': self.optimizer.state_dict(),
-                             'saving_path': config.saving_path}
-
-                # Save current state of the network (for restoring purposes)
-                checkpoint_path = join(checkpoint_directory, 'current_chkp.tar')
-                torch.save(save_dict, checkpoint_path)
-
-                # Save checkpoints occasionally
-                if (self.epoch + 1) % config.checkpoint_gap == 0:
-                    checkpoint_path = join(checkpoint_directory, 'chkp_{:04d}.tar'.format(self.epoch + 1))
-                    torch.save(save_dict, checkpoint_path)
-
-            # # Validation
-            # net.eval()
-            # self.validation(net, val_loader, config)
-            
-            net.train()
-
-        print('Finished Training')
-        return
-
-    # Validation
 
 
 

@@ -1,10 +1,3 @@
-#
-#
-#      0=================================0
-#      |    Kernel Point Convolutions    |
-#      0=================================0
-#
-#
 # ----------------------------------------------------------------------------------------------------------------------
 #
 #      Callable script to start a training on ScannetSLAM dataset
@@ -14,12 +7,6 @@
 #      Yuhang Ming
 #
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-#
-#           Imports and global variables
-#       \**********************************/
-#
 
 # Common libs
 import signal
@@ -161,8 +148,6 @@ class ScannetSLAMConfig(Config):
     batch_norm_momentum = 0.02
 
     # Deformable offset loss
-    # 'point2point' fitting geometry by penalizing distance from deform point to input points
-    # 'point2plane' fitting geometry by penalizing distance from deform point to input point triplet (not implemented)
     deform_fitting_mode = 'point2point'
     deform_fitting_power = 1.0              # Multiplier for the fitting/repulsive loss
     deform_lr_factor = 0.1                  # Multiplier for learning rate applied to the deformations
@@ -198,20 +183,6 @@ class ScannetSLAMConfig(Config):
     augment_scale_max = 1.2
     augment_noise = 0.001
     augment_color = 1.0     #1.0 means no augmentation 0.8
-
-    # Choose weights for class (used in segmentation loss). Empty list for no weights
-    # class proportion for R=10.0 and dl=0.08 (first is unlabeled)
-    # 19.1 48.9 0.5  1.1  5.6  3.6  0.7  0.6  0.9 193.2 17.7 127.4 6.7 132.3 68.4 283.8 7.0 78.5 3.3 0.8
-    #
-    #
-
-    # sqrt(Inverse of proportion * 100)
-    # class_w = [1.430, 14.142, 9.535, 4.226, 5.270, 11.952, 12.910, 10.541, 0.719,
-    #            2.377, 0.886, 3.863, 0.869, 1.209, 0.594, 3.780, 1.129, 5.505, 11.180]
-
-    # sqrt(Inverse of proportion * 100)  capped (0.5 < X < 5)
-    # class_w = [1.430, 5.000, 5.000, 4.226, 5.000, 5.000, 5.000, 5.000, 0.719, 2.377,
-    #            0.886, 3.863, 0.869, 1.209, 0.594, 3.780, 1.129, 5.000, 5.000]
 
     # Do we nee to save convergence
     saving = True

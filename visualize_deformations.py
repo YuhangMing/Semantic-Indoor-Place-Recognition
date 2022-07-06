@@ -29,8 +29,6 @@ import sys
 import torch
 
 # Dataset
-from datasets.ModelNet40 import *
-from datasets.S3DIS import *
 from datasets.ScannetSLAM import *
 from torch.utils.data import DataLoader
 
@@ -162,15 +160,7 @@ if __name__ == '__main__':
     print('****************')
 
     # Initiate dataset
-    if config.dataset.startswith('ModelNet40'):
-        test_dataset = ModelNet40Dataset(config, train=False)
-        test_sampler = ModelNet40Sampler(test_dataset)
-        collate_fn = ModelNet40Collate
-    elif config.dataset == 'S3DIS':
-        test_dataset = S3DISDataset(config, set='validation', use_potentials=True)
-        test_sampler = S3DISSampler(test_dataset)
-        collate_fn = S3DISCollate
-    elif config.dataset == 'ScannetSLAM':
+    if config.dataset == 'ScannetSLAM':
         test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
         test_sampler = ScannetSLAMSampler(test_dataset)
         collate_fn = ScannetSLAMCollate

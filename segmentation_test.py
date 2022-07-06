@@ -1,18 +1,8 @@
 #
-#
-#      0=================================0
-#      |    Kernel Point Convolutions    |
-#      0=================================0
-#
+#      Performing Semantic Segmentation Test
 #      Yuhang Modifidation
 #
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-#
-#           Imports and global variables
-#       \**********************************/
-#
 
 # Common libs
 from operator import imod
@@ -23,17 +13,10 @@ import sys
 import torch
 
 # Dataset
-# from datasets.ModelNet40 import *
-# from datasets.SemanticKitti import *
-# stanford cloud segmentation
-from datasets.S3DIS import *
-# scannet cloud segmentation
-from datasets.Scannet import *
 # cloud segmentation using rgbd pcd from 7 scenes
 from datasets.SinglePLY import *
 # SLAM segmentation
 from datasets.ScannetSLAM import *
-from datasets.SemanticKitti import *
 from torch.utils.data import DataLoader
 
 from utils.config import Config
@@ -102,13 +85,8 @@ if __name__ == '__main__':
     #       > 'last_XXX': Automatically retrieve the last trained model on dataset XXX
     #       > '(old_)results/Log_YYYY-MM-DD_HH-MM-SS': Directly provide the path of a trained model
 
-    # chosen_log = 'last_S3DIS'
-    # chosen_log = 'results/Log_2021-04-19_10-01-23'  # => S3DIS, batch 4, 1st feat 64, 0.04-2.0
-    # chosen_log = 'results/Log_2021-05-05_06-19-46'  # => ScanNet (subset), batch 10, 1st feat 64, 0.04-2.0
     # chosen_log = 'results/Log_2021-06-16_02-31-04'  # => ScanNetSLAM (full), batch 8, 1st feat 64, 0.04-2.0, without color
     chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), batch 8, 1st feat 64, 0.04-2.0, with color
-    # chosen_log = 'results/Log_2021-06-11_02-47-11'  # => SemanticKitti (full), deformed kernel
-    # chosen_log = 'results/Log_2021-06-11_04-20-14'  # => SemanticKitti (full), rigid kernel
         
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
     chkp_idx = 9 # chkp_500
@@ -171,28 +149,11 @@ if __name__ == '__main__':
     print('****************')
     # Initiate dataset
     # Use the provided dataset and loader, for easy batch generation
-    #### S3DIS
-    # test_dataset = S3DISDataset(config, 'visualise', use_potentials=True)
-    # test_sampler = S3DISSampler(test_dataset)
-    # collate_fn = S3DISCollate
-    #### 7Scenes
-    # test_dataset = SinglePlyDataset(config, 'visualise', use_potentials=True)
-    # test_sampler = SinglePlySampler(test_dataset)
-    # collate_fn = SinglePlyCollate
-    #### Scannet
-    # # test_dataset = ScannetDataset(config, 'validation', use_potentials=True)
-    # test_dataset = ScannetDataset(config, 'test', use_potentials=True)
-    # test_sampler = ScannetSampler(test_dataset)
-    # collate_fn = ScannetCollate
     #### ScannetSLAM
     test_dataset = ScannetSLAMDataset(config, 'validation', balance_classes=False)
     # test_dataset = ScannetSLAMDataset(config, 'test', balance_classes=False)
     test_sampler = ScannetSLAMSampler(test_dataset)
     collate_fn = ScannetSLAMCollate
-    # #### SemanticKitti
-    # test_dataset = SemanticKittiDataset(config, set='test', balance_classes=False)
-    # test_sampler = SemanticKittiSampler(test_dataset)
-    # collate_fn=SemanticKittiCollate
 
     print(test_dataset.label_values)
     print(test_dataset.ignored_labels)
@@ -269,16 +230,10 @@ if __name__ == '__main__':
     # Perform prediction
     if config.dataset_task == 'slam_segmentation':
         tester.slam_segmentation_test(net, test_loader, config, 0)
-    # elif config.dataset_task == 'cloud_segmentaion':
-    #     # tester.cloud_segmentation_test(net, test_loader, config, 0)
-    #     tester.segmentation_with_return(net, test_loader, config, 0)
     else:
         raise ValueError('Unsupported dataset task: ' + config.dataset_task)
-    # # Forward pass
-    # outputs = net(batch, config)
-    # inter_en_feat = net.inter_encoder_features(batch, config)
 
-    # Visualisation
+    # # Visualisation, uncomment below if needed
     # # plot legends
     # fig = plt.figure()
     # ax = fig.add_subplot()
@@ -297,42 +252,4 @@ if __name__ == '__main__':
     #     ax.text(x+0.25, y-0.5, test_dataset.label_to_names[i], fontsize=15)
     # # plot color annotation
     # plt.show()
-
-    # if data == 'S3DIS':
-    #     # S3DIS
-    #     rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
-    #                                     test_dataset.train_path, 
-    #                                     'Area_5', test_dataset.room_name + ".ply"))
-    # elif data == '7Scenes':
-    #     # Seven Scenes
-    #     rgb = o3d.io.read_point_cloud(join(test_dataset.path, 
-    #                                     test_dataset.train_path, 
-    #                                     'pumpkin', test_dataset.room_name + ".ply"))
-    # else:
-    #     raise ValueError('Unknown dataset')
-    # vis1 = o3d.visualization.Visualizer()
-    # vis1.create_window(window_name='RGB', width=960, height=540, left=0, top=0)
-    # vis1.add_geometry(rgb)
-
-    # pred = o3d.io.read_point_cloud(join('test', 
-    #                                     config.saving_path.split('/')[-1], 
-    #                                     'predictions',
-    #                                     test_dataset.room_name+'_pred.ply'))
-    # vis2 = o3d.visualization.Visualizer()
-    # vis2.create_window(window_name='prediction', width=960, height=540, left=0, top=0)
-    # vis2.add_geometry(pred)
-    # # visualise segmentation result with original color pc
-    # while True:
-    #     vis1.update_geometry(rgb)
-    #     if not vis1.poll_events():
-    #         break
-    #     vis1.update_renderer()
-
-    #     vis2.update_geometry(pred)
-    #     if not vis2.poll_events():
-    #         break
-    #     vis2.update_renderer()
-
-    # vis1.destroy_window()
-    # vis2.destroy_window()
 
