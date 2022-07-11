@@ -304,7 +304,6 @@ class ScannetTripleDataset(PointCloudDataset):
 
         while True:
 
-            ## WORK HERE HOW TO FIND THE INDICES ??
             # Use potential minimum to get index of scene and frame
             with self.worker_lock:
                 # Get potential minimum
@@ -617,7 +616,7 @@ class ScannetTripleDataset(PointCloudDataset):
 
             # get necessary data
             scene_files = []    # list of pcd file names for current scene
-            # scene_poses = []    # list of pcd poses for current scene
+            scene_poses = []    # list of pcd poses for current scene
             scene_fids = []     # list of actual frame id used to generate the pcd
             all_posId = []      # list of positive pcd Indices
             all_negId = []      # list of negative pcd Indices
@@ -626,16 +625,16 @@ class ScannetTripleDataset(PointCloudDataset):
                 # print('{}%'.format(int(100*j/num_scene_pcds)), flush=True, end='\r')
                 frame_subpcd_file = join(scene_pcd_path, subpcd_file)
 
-                # # get pose of current frame
-                # pose = np.loadtxt(join(scene_folder, 'pose', str(actual_frame_id)+'.txt'))
-                # # double check if pose is lost
-                # chk_val = np.sum(pose)
-                # if np.isinf(chk_val) or np.isnan(chk_val):
-                #     raise ValueError('Invalid pose value for', scene_folder, actual_frame_id)
+                # get pose of current frame
+                pose = np.loadtxt(join(scene_folder, 'pose', str(actual_frame_id)+'.txt'))
+                # double check if pose is lost
+                chk_val = np.sum(pose)
+                if np.isinf(chk_val) or np.isnan(chk_val):
+                    raise ValueError('Invalid pose value for', scene_folder, actual_frame_id)
 
                 # store file name info
                 scene_files.append(frame_subpcd_file)
-                # scene_poses.append(pose)
+                scene_poses.append(pose)
                 scene_fids.append(actual_frame_id)
 
                 # store current pos and neg index
@@ -650,7 +649,7 @@ class ScannetTripleDataset(PointCloudDataset):
             # print('100 %')
 
             self.files.append(scene_files)
-            # self.poses.append(scene_poses)
+            self.poses.append(scene_poses)
             self.fids.append(scene_fids)
             self.pcd_sizes.append(dict_pcd_size[scene])
             if self.set in ['training', 'validation']:

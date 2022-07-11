@@ -39,7 +39,7 @@ The ScanNetPR dataset can be downloaded [here](link)
 
 In the first stage we train the semantic encodes and decoder on a SLAM-Segmentation task, i.e. semantic segmentation on coloured point clouds within local coordinate system.
 
-1. Change the path to the complete ScanNet dataset in the `datasets/ScannetSLAM.py` file.
+1. Change the `self.path` variable in the `datasets/ScannetSLAM.py` file to the path of complete ScanNet dataset.
 
 2. Run the following to train the semantic encoder and decoder.
 ```
@@ -52,6 +52,24 @@ Please download the folder and put it in the `results` directory. In the folder 
 
 ### Training stage 2:
 
+In the second stage, we train the feature embedding module to generate the global descriptors.
+
+1. Change the `self.path` variable in the `datasets/ScannetTriple.py` file to the path of ScanNetPR dataset.
+
+2. Run the the training file as:
+```
+python feature_embedding_test.py --train --num_feat 5 --optimiser Adam
+```
+Train the model with different setting:
+- change the number of feature layers by choosing --num_feat from [3, 5];
+- change the optimiser by choosing --optimiser from [SGD, Adam];
+- set to use point clouds without colour by setting the an optional flag --no_color.
+
+### Evaluation:
+Run the file with an additional --test flag on, perform evaluation with the --eval flag on:
+```
+python feature_embedding_test.py --test --num_feat 5 --optimiser Adam --eval
+```
 
 ### Visualisations
 * [Kernel Visualization](./doc/visualization_guide.md): Use the script from KP-Conv repository, the kernel deformations can be displayed.

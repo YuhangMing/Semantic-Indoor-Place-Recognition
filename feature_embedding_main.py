@@ -47,22 +47,6 @@ import open3d as o3d
 
 
 if __name__ == '__main__':
-    """
-    Activate environment: 
-        conda acitvate graph
-    
-    Train with LAST 3 blocks of encoder features with SGD: 
-        python feature_embedding_test.py --train --num_feat 3 --optimiser SGD
-    Train with ALL 5 blocks of encoder features with Adam: 
-        python feature_embedding_test.py --train --num_feat 5 --optimiser Adam
-    Train with ALL 5 blocks of encoder features but don't use color in input pcds: 
-        python feature_embedding_test.py --train --no_color --num_feat 5 --optimiser adam
-    
-    Test with LAST 3 blocks of encoder features, visualisation only: 
-        python feature_embedding_test.py --test --num_feat 3 --optimiser Adam/SGD --visualise
-    Test with ALL 5 blocks of encoder features, evaluation only: 
-        python feature_embedding_test.py --test --num_feat 5 --optimiser Adam/SGD --eval
-    """
 
     #####################
     # PARSE CMD-LINE ARGS
