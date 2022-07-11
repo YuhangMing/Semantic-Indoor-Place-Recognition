@@ -257,7 +257,7 @@ def write_ply(filename, field_list, field_names, triangular_faces=None):
             return False    
 
     # check all fields have the same number of data
-    print(field_names)
+    # print(field_names)
     n_points = [field.shape[0] for field in field_list]
     # for i, field in enumerate(field_list):
     #     print( field_names[i], n_points[i])

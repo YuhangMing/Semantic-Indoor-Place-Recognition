@@ -69,12 +69,8 @@ class ScannetSLAMDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        # self.path = '../../Data/SemanticKitti'
-        # self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        # self.path = '/media/yohann/Datasets/datasets/ScanNetPR'
+        # Change here: Path to the full ScanNet/SemanticKitti Dataset
         self.path = '/media/yohann/Datasets/datasets/ScanNet'
-        # self.path = '/media/adam/Datasets/datasets/ScanNet'
-        # self.path = '/mnt/nas_7/datasets/ScanNet'
 
         # Type of task conducted on this dataset
         self.dataset_task = 'slam_segmentation'

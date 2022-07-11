@@ -72,11 +72,7 @@ class ScannetTripleDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '/media/yohann/Datasets/datasets/ScanNetPR'
-        # self.path = '/media/adam/Datasets/datasets/ScanNet'
-        # self.path = '/home/adam/Yuhang/Dataset/ScanNetPR'
-        # self.path = '/home/yuhang/ScanNetPR'
-        # self.path = '/mnt/nas_7/datasets/ScanNet'
+        self.path = '/media/yohann/fastStorage/test_folder/ScanNetPR'
         
         # # pcd without zero-meaning coordinates
         # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')
@@ -406,27 +402,6 @@ class ScannetTripleDataset(PointCloudDataset):
                         neg_s_inds.append(tmp_neg_s)
                         neg_f_inds.append(tmp_neg_f)
                 
-                # Negative pcd indices
-                # # choose at most one from the same scene
-                # if len(self.negIds[s_ind][f_ind]) > 0:
-                #     neg_s_inds = [s_ind]
-                # else:
-                #     neg_s_inds = []
-                # # randomly choose from other scenes
-                # while len(neg_s_inds) < self.num_neg_samples:
-                #     tmp_neg = np.random.choice( len(self.scenes) )
-                #     # double check to prevent same (as anchor) scene is selected
-                #     if self.scenes[s_ind][:9] != self.scenes[tmp_neg][:9]:
-                #         neg_s_inds.append(tmp_neg)
-                # # get the (s_ind, f_ind) pairs
-                # neg_f_inds = []
-                # for neg_s in neg_s_inds:
-                #     if neg_s == s_ind:
-                #         neg_f_inds.append(np.random.choice(self.negIds[neg_s][f_ind]))
-                #     else:
-                #         neg_f_inds.append(np.random.randint(0, len(self.fids[neg_s])))
-                # neg_f_inds = np.array(neg_f_inds)
-                
                 # print(neg_s_inds, neg_f_inds)
                 for idx in range(self.num_neg_samples):
                     all_indices.append( (neg_s_inds[idx], neg_f_inds[idx]) )
@@ -463,58 +438,6 @@ class ScannetTripleDataset(PointCloudDataset):
                 current_file = self.files[s_ind][f_ind]
                 # print('Loading: ', current_file)
 
-                # data = read_ply(current_file)
-                # points = np.vstack((data['x'], data['y'], data['z'])).T # Nx3
-                # if points.shape[0] < 2:
-                #     raise ValueError("Empty Polygan Mesh !!!!")
-                # # print(' -', current_file)
-                # colors = np.vstack((data['red'], data['green'], data['blue'])).T
-                # labels = data['class']  # zeros for test set
-                # # Get center of the first frame in camera coordinates
-                # p0 = np.mean(points, axis=0)      # mean in column direction
-                # # pose0 = self.poses[s_ind][f_ind]
-                # # p0 = np.dot(pose0[:3, :3], p_origin) + pose0[:3, 3]
-                # # p0 = np.squeeze(p0)
-                # # print("\nOriginal Cloud Info: ")
-                # # print('points:', points.shape, type(points[0,0]))
-                # # print('colors:', colors.shape, type(colors[0,0]))
-                # # print('labels:', labels.shape, type(labels[0]))
-                # # print('center:', p0.shape,     type(p0[0]))
-                # #### ONLY used for segmentation test.
-                # #### !!!! DONT NEED THESE FOR VLAD TEST //- Yohann
-                # o_pts = None
-                # o_labels = None
-                # # # backup the original point for validation
-                # # if self.set in ['validation', 'test']:
-                # #     o_pts = points.astype(np.float32)
-                # #     o_labels = labels.astype(np.int32)
-                # # else:
-                # #     o_pts = None
-                # #     o_labels = None
-                # ## Every frame point cloud is process only once 
-                # ## using a sphere with in_radius around the center of the input point cloud 
-                # # Eliminate points further than config.in_radius
-                # mask = np.sum(np.square(points - p0), axis=1) < self.in_R ** 2
-                # mask_inds = np.where(mask)[0].astype(np.int32)  # get row index of Trues or 1s
-                # points = points[mask_inds, :]
-                # colors = colors[mask_inds, :]
-                # labels = labels[mask_inds]
-                # # print("\nInliers Info: ")
-                # # print('points:', points.shape, type(points[0,0]))
-                # # print('colors:', colors.shape, type(colors[0,0]))
-                # # print('labels:', labels.shape, type(labels[0]))
-                # # print('center:', p0.shape,     type(p0[0]))
-                # # Subsample merged frames
-                # sub_pts, sub_rgb, sub_lbls = grid_subsampling(points.astype(np.float32),
-                #                                             features=colors.astype(np.float32),
-                #                                             labels=labels.astype(np.int32),
-                #                                             sampleDl=self.config.first_subsampling_dl)
-                # # print("\nSubsampled Cloud Info: ")
-                # # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
-                # # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
-                # # print('labels:', sub_lbls.shape, type(sub_lbls[0]))
-                # # print('center:', p0.shape,       type(p0[0]))
-
                 o_pts = None
                 o_labels = None
 
@@ -534,14 +457,8 @@ class ScannetTripleDataset(PointCloudDataset):
                 # in case of Matrix x Vector, np.dot = np.matmul
                 crnt_pose = self.poses[s_ind][f_ind]
                 p0 = crnt_pose[:3, :3] @ p0 + crnt_pose[:3, 3]
-                # print("\nSubsampled Cloud Info: ")
-                # print('points:', sub_pts.shape,  type(sub_pts[0,0]))
-                # print('colors:', sub_rgb.shape,  type(sub_rgb[0,0]))
-                # print('labels:', sub_lbls.shape, type(sub_lbls[0]))
-                # print('center:', p0.shape, type(p0[0]), p0)
 
                 # rescale float color and squeeze label
-                ##  ?? some line missing here?
                 sub_rgb = sub_rgb / 255.
                 sub_lbls = np.squeeze(sub_lbls)     # eg. from shape (1, 3, 1) to shape (3,), axis to be squeezed out must have size 1
 
@@ -562,18 +479,6 @@ class ScannetTripleDataset(PointCloudDataset):
                 #### !!!! DONT NEED THESE FOR VLAD TEST //- Yohann
                 proj_inds = np.zeros((0,))
                 reproj_mask = np.zeros((0,))
-                # # Before augmenting, compute reprojection inds (only for validation and test)
-                # if self.set in ['validation', 'test']:  
-                #     # get val_points that are in range
-                #     radiuses = np.sum(np.square(o_pts - p0), axis=1)
-                #     reproj_mask = radiuses < (0.99 * self.in_R) ** 2
-                #     # Project predictions on the frame points
-                #     search_tree = KDTree(sub_pts, leaf_size=10)
-                #     proj_inds = search_tree.query(o_pts[reproj_mask, :], return_distance=False)
-                #     proj_inds = np.squeeze(proj_inds).astype(np.int32)
-                # else:
-                #     proj_inds = np.zeros((0,))
-                #     reproj_mask = np.zeros((0,))
 
                 ## sub points in camera coordinate system
                 ## AUGMENTATION DISABLED FOR NOW
@@ -678,17 +583,17 @@ class ScannetTripleDataset(PointCloudDataset):
         
         # Load pre-processed files [all tasks are stored in a single file]
         # positive and negative indices for each pcd
-        vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_pos_neg.txt')
+        vlad_pn_file = join(self.path, 'VLAD_triplets', 'vlad_pos_neg.pkl')
         with open(vlad_pn_file, "rb") as f:
             # dict, key = scene string, val = list of pairs of (list pos, list neg)
             all_scene_pos_neg = pickle.load(f)
         # zero-meaned pcd file names for each pcd
-        valid_pcd_file = join(self.path, 'VLAD_triplets', 'vlad_pcd.txt')
+        valid_pcd_file = join(self.path, 'VLAD_triplets', 'vlad_pcd.pkl')
         with open(valid_pcd_file, "rb") as f:
             # dict, key = scene string, val = list of filenames
             all_scene_pcds = pickle.load(f)
         # num of pts in each pcd
-        pcd_size_file = join(self.path, 'VLAD_triplets', 'pcd_size.txt')
+        pcd_size_file = join(self.path, 'VLAD_triplets', 'pcd_size.pkl')
         with open(pcd_size_file, "rb") as f:
             # dict, key = scene string, val = list of point numbers
             dict_pcd_size = pickle.load(f)
@@ -712,7 +617,7 @@ class ScannetTripleDataset(PointCloudDataset):
 
             # get necessary data
             scene_files = []    # list of pcd file names for current scene
-            scene_poses = []    # list of pcd poses for current scene
+            # scene_poses = []    # list of pcd poses for current scene
             scene_fids = []     # list of actual frame id used to generate the pcd
             all_posId = []      # list of positive pcd Indices
             all_negId = []      # list of negative pcd Indices
@@ -721,16 +626,16 @@ class ScannetTripleDataset(PointCloudDataset):
                 # print('{}%'.format(int(100*j/num_scene_pcds)), flush=True, end='\r')
                 frame_subpcd_file = join(scene_pcd_path, subpcd_file)
 
-                # get pose of current frame
-                pose = np.loadtxt(join(scene_folder, 'pose', str(actual_frame_id)+'.txt'))
-                # double check if pose is lost
-                chk_val = np.sum(pose)
-                if np.isinf(chk_val) or np.isnan(chk_val):
-                    raise ValueError('Invalid pose value for', scene_folder, actual_frame_id)
+                # # get pose of current frame
+                # pose = np.loadtxt(join(scene_folder, 'pose', str(actual_frame_id)+'.txt'))
+                # # double check if pose is lost
+                # chk_val = np.sum(pose)
+                # if np.isinf(chk_val) or np.isnan(chk_val):
+                #     raise ValueError('Invalid pose value for', scene_folder, actual_frame_id)
 
                 # store file name info
                 scene_files.append(frame_subpcd_file)
-                scene_poses.append(pose)
+                # scene_poses.append(pose)
                 scene_fids.append(actual_frame_id)
 
                 # store current pos and neg index
@@ -745,7 +650,7 @@ class ScannetTripleDataset(PointCloudDataset):
             # print('100 %')
 
             self.files.append(scene_files)
-            self.poses.append(scene_poses)
+            # self.poses.append(scene_poses)
             self.fids.append(scene_fids)
             self.pcd_sizes.append(dict_pcd_size[scene])
             if self.set in ['training', 'validation']:

@@ -31,11 +31,24 @@ This implementation has been tested on Ubuntu 18.04 and 20.04.
 
 ## Experiments
 
-### Generate data
+### Data
 
+The ScanNetPR dataset can be downloaded [here](link)
 
 ### Training stage 1:
 
+In the first stage we train the semantic encodes and decoder on a SLAM-Segmentation task, i.e. semantic segmentation on coloured point clouds within local coordinate system.
+
+1. Change the path to the complete ScanNet dataset in the `datasets/ScannetSLAM.py` file.
+
+2. Run the following to train the semantic encoder and decoder.
+```
+python train_ScannetSLAM.py
+```
+
+The training usually takes a week. We also provide our pretrained endocer-decoder [here](https://drive.google.com/drive/folders/1ClyEa7fygBkKZ5oEH-DQQYykj8RJJ51p?usp=sharing) if you want to skip the first training stage.
+
+Please download the folder and put it in the `results` directory. In the folder `Log_2021-06-16_02-31-04` we provide the model trained on the complete ScanNet dataset WITHOUT colour. And in the folder `Log_2021-06-16_02-42-30` we provide the model trained on the compltete ScanNet dataset WITH colour.
 
 ### Training stage 2:
 
@@ -67,3 +80,9 @@ In this project, we use parts of the official implementations of following works
 
 * <a href="https://github.com/cattaneod/PointNetVlad-Pytorch">PointNetVLAD-Pytorch</a> (NetVLAD Layer)
 
+## Future Work
+- [ ] Test on NAVER Indoor Localisation Dataset [Link](https://europe.naverlabs.com/blog/first-of-a-kind-large-scale-localization-datasets-in-crowded-indoor-spaces/).
+
+- [ ] Test on other outdoor datasets (Oxford RobotCar Dataset etc.).
+
+- [ ] Explore attention module for better feature selection before constructing global descriptors.

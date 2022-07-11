@@ -101,7 +101,7 @@ if __name__ == '__main__':
         print('ScanNetSLAM, WITH color')
         chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), with color, batch 8, 1st feat 64, 0.04-2.0
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = 9 # chkp_500
+    chkp_idx = 0 # chkp_500
     print('Chosen log:', chosen_log, 'chkp_idx=', chkp_idx)
 
     # Find all checkpoints in the chosen training folder
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         device = torch.device("cpu")        
     seg_net.to(device)
     # Load pretrained weights
-    checkpoint = torch.load(chosen_chkp)
+    checkpoint = torch.load(config.KPlog)
     # print(checkpoint.keys())    # ['epoch', 'model_state_dict', 'optimizer_state_dict', 'saving_path']
     # print(checkpoint['model_state_dict'].keys())    # where weights are stored
     # print(checkpoint['optimizer_state_dict'].keys())
@@ -277,12 +277,8 @@ if __name__ == '__main__':
         print('\nLoad pre-trained recognition VLAD')
         print('*********************************')
         t = time.time()
-        # print('Triplet loss, feat_num = 5')
-        # chosen_log = 'results/Recog_Log_2021-07-02_03-51-36'
-        # print('Triplet loss, feat_num = 3')
-        # chosen_log = 'results/Recog_Log_2021-07-07_06-41-29'
+
         print('Quadruplet loss, feat_num = 5')
-        # chosen_log = 'results/Recog_Log_2021-07-01_07-55-26'
         chosen_log = 'results/Recog_Log_2022-02-27_13-42-44'
 
         # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
