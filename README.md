@@ -46,7 +46,7 @@ In the first stage we train the semantic encodes and decoder on a SLAM-Segmentat
 python train_ScannetSLAM.py
 ```
 
-The training usually takes a week. We also provide our pretrained endocer-decoder [here](https://drive.google.com/drive/folders/1ClyEa7fygBkKZ5oEH-DQQYykj8RJJ51p?usp=sharing) if you want to skip the first training stage.
+The training usually takes a day. We also provide our pretrained endocer-decoder [here](https://drive.google.com/drive/folders/1ClyEa7fygBkKZ5oEH-DQQYykj8RJJ51p?usp=sharing) if you want to skip the first training stage.
 
 Please download the folder and put it in the `results` directory. In the folder `Log_2021-06-16_02-31-04` we provide the model trained on the complete ScanNet dataset WITHOUT colour. And in the folder `Log_2021-06-16_02-42-30` we provide the model trained on the compltete ScanNet dataset WITH colour.
 
