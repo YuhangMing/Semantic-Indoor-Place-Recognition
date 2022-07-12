@@ -33,7 +33,7 @@ This implementation has been tested on Ubuntu 18.04 and 20.04.
 
 ### Data
 
-The ScanNetPR dataset can be downloaded [here](link)
+The ScanNetPR dataset can be downloaded [here](https://drive.google.com/drive/folders/1F3jJ_iPJIMIl4Fr06ioVQq8fCVqqMDnP?usp=sharing)
 
 ### Training stage 1:
 
