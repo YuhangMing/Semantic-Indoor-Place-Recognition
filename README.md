@@ -33,7 +33,26 @@ This implementation has been tested on Ubuntu 18.04 and 20.04.
 
 ### Data
 
-The ScanNetPR dataset can be downloaded [here](link)
+The ScanNetPR dataset can be downloaded [here](https://drive.google.com/drive/folders/1F3jJ_iPJIMIl4Fr06ioVQq8fCVqqMDnP?usp=sharing)
+```
+├── ScanNetPR
+│   ├── scans                              # folder to hold all the data
+│   │   ├── scene0000_00
+│   │   │   ├── input_pcd_0mean
+│   │   │   │   ├── scene0000_00_0_sub.ply # zero meaned point cloud file stored ad [x, y, z, r, g, b]
+│   │   │   │   ├── ...
+│   │   │   ├── pose
+│   │   │   │   ├── 0.txt                  # pose corresponding to the point cloud
+│   │   │   │   ├── ...
+│   │   │   ├── scene0000_00.txt           # scene information
+│   │   ├── ...
+│   ├── views/Tasks/Benchmark              # stores all the data split file from ScanNet dataset
+│   ├── VLAD_triplets                      # stores all the files necessary for generating training tuples
+├── batch_limits.pkl                       # calibration file for KP-Conv
+├── max_in_limits.pkl                      # calibration file for KP-Conv
+├── neighbors_limits.pkl                   # calibration file for KP-Conv
+└── other ScanNet related files ...
+```
 
 ### Training stage 1:
 
