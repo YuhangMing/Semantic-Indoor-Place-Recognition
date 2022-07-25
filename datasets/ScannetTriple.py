@@ -72,7 +72,7 @@ class ScannetTripleDataset(PointCloudDataset):
         ##########################
 
         # Dataset folder
-        self.path = '/media/yohann/fastStorage/test_folder/ScanNetPR'
+        self.path = '/media/yohann/fastStorage/data/ScanNetPR'
         
         # # pcd without zero-meaning coordinates
         # self.input_pcd_path = join(self.path, 'scans', 'input_pcd')

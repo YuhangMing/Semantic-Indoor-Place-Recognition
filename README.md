@@ -58,7 +58,7 @@ In the second stage, we train the feature embedding module to generate the globa
 
 2. Run the the training file as:
 ```
-python feature_embedding_test.py --train --num_feat 5 --optimiser Adam
+python feature_embedding_main.py --train --num_feat 5 --optimiser Adam
 ```
 Train the model with different setting:
 - change the number of feature layers by choosing --num_feat from [3, 5];
@@ -68,7 +68,7 @@ Train the model with different setting:
 ### Evaluation:
 Run the file with an additional --test flag on, perform evaluation with the --eval flag on:
 ```
-python feature_embedding_test.py --test --num_feat 5 --optimiser Adam --eval
+python feature_embedding_main.py --test --num_feat 5 --optimiser Adam --eval
 ```
 
 ### Visualisations

@@ -88,7 +88,7 @@ class ScannetSLAMDataset(PointCloudDataset):
         elif self.set == 'validation':
             scene_file_name = join(data_split_path, 'scannetv2_val.txt')
             self.scenes = np.sort(np.loadtxt(scene_file_name, dtype=np.str))
-            self.scenes = [self.scenes[0]]  # test
+            self.scenes = [self.scenes[10]]  # test
         elif self.set == 'test':
             # scene_file_name = join(data_split_path, 'scannetv2_test.txt')
             # self.scenes = np.loadtxt(scene_file_name, dtype=np.str)

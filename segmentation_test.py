@@ -89,7 +89,8 @@ if __name__ == '__main__':
     chosen_log = 'results/Log_2021-06-16_02-42-30'  # => ScanNetSLAM (full), batch 8, 1st feat 64, 0.04-2.0, with color
         
     # Choose the index of the checkpoint to load OR None if you want to load the current checkpoint
-    chkp_idx = 9 # chkp_500
+    chkp_idx = 0 # chkp_500
+    # chkp_idx = 9 # chkp_500
 
     # Deal with 'last_XXXXXX' choices
     chosen_log = model_choice(chosen_log)
