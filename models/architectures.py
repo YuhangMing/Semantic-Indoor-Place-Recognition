@@ -347,9 +347,6 @@ class KPFCNN(nn.Module):
     def inter_encoder_features(self, batch):
         # Get input features
         x = batch.features.clone().detach()
-
-        # If No Colour, remove colour features
-        x = x[:, 0][..., None]
         # print('input feature dimensions:', x.size())
         # print(x)
 
